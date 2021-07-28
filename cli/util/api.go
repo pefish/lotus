@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -117,6 +118,15 @@ func GetAPIInfo(ctx *cli.Context, t repo.RepoType) (APIInfo, error) {
 	r, err := repo.NewFS(p)
 	if err != nil {
 		return APIInfo{}, xerrors.Errorf("could not open repo at path: %s; %w", p, err)
+	}
+
+	exists, err := r.Exists()
+	if err != nil {
+		return APIInfo{}, xerrors.Errorf("repo.Exists returned an error: %w", err)
+	}
+
+	if !exists {
+		return APIInfo{}, errors.New("repo directory does not exist. Make sure your configuration is correct")
 	}
 
 	ma, err := r.APIEndpoint()
