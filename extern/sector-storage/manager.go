@@ -29,8 +29,6 @@ var log = logging.Logger("advmgr")
 
 var ErrNoWorkers = errors.New("no suitable workers found")
 
-type URLs []string
-
 type Worker interface {
 	storiface.WorkerCalls
 
@@ -87,6 +85,20 @@ type result struct {
 	err error
 }
 
+// ResourceFilteringStrategy is an enum indicating the kinds of resource
+// filtering strategies that can be configured for workers.
+type ResourceFilteringStrategy string
+
+const (
+	// ResourceFilteringHardware specifies that available hardware resources
+	// should be evaluated when scheduling a task against the worker.
+	ResourceFilteringHardware = ResourceFilteringStrategy("hardware")
+
+	// ResourceFilteringDisabled disables resource filtering against this
+	// worker. The scheduler may assign any task to this worker.
+	ResourceFilteringDisabled = ResourceFilteringStrategy("disabled")
+)
+
 type SealerConfig struct {
 	ParallelFetchLimit int
 
@@ -96,6 +108,11 @@ type SealerConfig struct {
 	AllowPreCommit2 bool
 	AllowCommit     bool
 	AllowUnseal     bool
+
+	// ResourceFiltering instructs the system which resource filtering strategy
+	// to use when evaluating tasks against this worker. An empty value defaults
+	// to "hardware".
+	ResourceFiltering ResourceFilteringStrategy
 }
 
 type StorageAuth http.Header
@@ -104,7 +121,6 @@ type WorkerStateStore *statestore.StateStore
 type ManagerStateStore *statestore.StateStore
 
 func New(ctx context.Context, lstor *stores.Local, stor *stores.Remote, ls stores.LocalStorage, si stores.SectorIndex, sc SealerConfig, wss WorkerStateStore, mss ManagerStateStore) (*Manager, error) {
-
 	prover, err := ffiwrapper.New(&readonlyProvider{stor: lstor, index: si})
 	if err != nil {
 		return nil, xerrors.Errorf("creating prover instance: %w", err)
@@ -151,9 +167,12 @@ func New(ctx context.Context, lstor *stores.Local, stor *stores.Remote, ls store
 		localTasks = append(localTasks, sealtasks.TTUnseal)
 	}
 
-	err = m.AddWorker(ctx, NewLocalWorker(WorkerConfig{
-		TaskTypes: localTasks,
-	}, stor, lstor, si, m, wss))
+	wcfg := WorkerConfig{
+		IgnoreResourceFiltering: sc.ResourceFiltering == ResourceFilteringDisabled,
+		TaskTypes:               localTasks,
+	}
+	worker := NewLocalWorker(wcfg, stor, lstor, si, m, wss)
+	err = m.AddWorker(ctx, worker)
 	if err != nil {
 		return nil, xerrors.Errorf("adding local worker: %w", err)
 	}
@@ -507,10 +526,25 @@ func (m *Manager) FinalizeSector(ctx context.Context, sector storage.SectorRef, 
 		}
 	}
 
+	pathType := storiface.PathStorage
+	{
+		sealedStores, err := m.index.StorageFindSector(ctx, sector.ID, storiface.FTSealed, 0, false)
+		if err != nil {
+			return xerrors.Errorf("finding sealed sector: %w", err)
+		}
+
+		for _, store := range sealedStores {
+			if store.CanSeal {
+				pathType = storiface.PathSealing
+				break
+			}
+		}
+	}
+
 	selector := newExistingSelector(m.index, sector.ID, storiface.FTCache|storiface.FTSealed, false)
 
 	err := m.sched.Schedule(ctx, sector, sealtasks.TTFinalize, selector,
-		m.schedFetch(sector, storiface.FTCache|storiface.FTSealed|unsealed, storiface.PathSealing, storiface.AcquireMove),
+		m.schedFetch(sector, storiface.FTCache|storiface.FTSealed|unsealed, pathType, storiface.AcquireMove),
 		func(ctx context.Context, w Worker) error {
 			_, err := m.waitSimpleCall(ctx)(w.FinalizeSector(ctx, sector, keepUnsealed))
 			return err

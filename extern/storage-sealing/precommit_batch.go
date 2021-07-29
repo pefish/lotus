@@ -7,9 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/actors/policy"
-
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
 
@@ -20,7 +17,9 @@ import (
 	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
+	"github.com/filecoin-project/lotus/chain/actors/policy"
 	"github.com/filecoin-project/lotus/extern/storage-sealing/sealiface"
 	"github.com/filecoin-project/lotus/node/config"
 )
@@ -30,6 +29,7 @@ import (
 type PreCommitBatcherApi interface {
 	SendMsg(ctx context.Context, from, to address.Address, method abi.MethodNum, value, maxFee abi.TokenAmount, params []byte) (cid.Cid, error)
 	StateMinerInfo(context.Context, address.Address, TipSetToken) (miner.MinerInfo, error)
+	StateMinerAvailableBalance(context.Context, address.Address, TipSetToken) (big.Int, error)
 	ChainHead(ctx context.Context) (TipSetToken, abi.ChainEpoch, error)
 }
 
@@ -88,6 +88,7 @@ func (b *PreCommitBatcher) run() {
 		panic(err)
 	}
 
+	timer := time.NewTimer(b.batchWait(cfg.PreCommitBatchWait, cfg.PreCommitBatchSlack))
 	for {
 		if forceRes != nil {
 			forceRes <- lastRes
@@ -95,35 +96,44 @@ func (b *PreCommitBatcher) run() {
 		}
 		lastRes = nil
 
-		var sendAboveMax, sendAboveMin bool
+		var sendAboveMax bool
 		select {
 		case <-b.stop:
 			close(b.stopped)
 			return
 		case <-b.notify:
 			sendAboveMax = true
-		case <-b.batchWait(cfg.PreCommitBatchWait, cfg.PreCommitBatchSlack):
-			sendAboveMin = true
+		case <-timer.C:
+			// do nothing
 		case fr := <-b.force: // user triggered
 			forceRes = fr
 		}
 
 		var err error
-		lastRes, err = b.maybeStartBatch(sendAboveMax, sendAboveMin)
+		lastRes, err = b.maybeStartBatch(sendAboveMax)
 		if err != nil {
 			log.Warnw("PreCommitBatcher processBatch error", "error", err)
 		}
+
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+
+		timer.Reset(b.batchWait(cfg.PreCommitBatchWait, cfg.PreCommitBatchSlack))
 	}
 }
 
-func (b *PreCommitBatcher) batchWait(maxWait, slack time.Duration) <-chan time.Time {
+func (b *PreCommitBatcher) batchWait(maxWait, slack time.Duration) time.Duration {
 	now := time.Now()
 
 	b.lk.Lock()
 	defer b.lk.Unlock()
 
 	if len(b.todo) == 0 {
-		return nil
+		return maxWait
 	}
 
 	var cutoff time.Time
@@ -141,12 +151,12 @@ func (b *PreCommitBatcher) batchWait(maxWait, slack time.Duration) <-chan time.T
 	}
 
 	if cutoff.IsZero() {
-		return time.After(maxWait)
+		return maxWait
 	}
 
 	cutoff = cutoff.Add(-slack)
 	if cutoff.Before(now) {
-		return time.After(time.Nanosecond) // can't return 0
+		return time.Nanosecond // can't return 0
 	}
 
 	wait := cutoff.Sub(now)
@@ -154,10 +164,10 @@ func (b *PreCommitBatcher) batchWait(maxWait, slack time.Duration) <-chan time.T
 		wait = maxWait
 	}
 
-	return time.After(wait)
+	return wait
 }
 
-func (b *PreCommitBatcher) maybeStartBatch(notif, after bool) ([]sealiface.PreCommitBatchRes, error) {
+func (b *PreCommitBatcher) maybeStartBatch(notif bool) ([]sealiface.PreCommitBatchRes, error) {
 	b.lk.Lock()
 	defer b.lk.Unlock()
 
@@ -172,10 +182,6 @@ func (b *PreCommitBatcher) maybeStartBatch(notif, after bool) ([]sealiface.PreCo
 	}
 
 	if notif && total < cfg.MaxPreCommitBatch {
-		return nil, nil
-	}
-
-	if after && total < cfg.MinPreCommitBatch {
 		return nil, nil
 	}
 
@@ -218,6 +224,11 @@ func (b *PreCommitBatcher) processBatch(cfg sealiface.Config) ([]sealiface.PreCo
 		res.Sectors = append(res.Sectors, p.pci.SectorNumber)
 		params.Sectors = append(params.Sectors, *p.pci)
 		deposit = big.Add(deposit, p.deposit)
+	}
+
+	deposit, err := collateralSendAmount(b.mctx, b.api, b.maddr, cfg, deposit)
+	if err != nil {
+		return []sealiface.PreCommitBatchRes{res}, err
 	}
 
 	enc := new(bytes.Buffer)

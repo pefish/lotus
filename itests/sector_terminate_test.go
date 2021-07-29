@@ -2,7 +2,6 @@ package itests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -15,21 +14,18 @@ import (
 )
 
 func TestTerminate(t *testing.T) {
-	if os.Getenv("LOTUS_TEST_WINDOW_POST") != "1" {
-		t.Skip("this takes a few minutes, set LOTUS_TEST_WINDOW_POST=1 to run")
-	}
+	kit.Expensive(t)
 
 	kit.QuietMiningLogs()
 
-	const blocktime = 2 * time.Millisecond
-
-	nSectors := uint64(2)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	var (
+		blocktime = 2 * time.Millisecond
+		nSectors  = 2
+		ctx       = context.Background()
+	)
 
 	opts := kit.ConstructorOpts(kit.LatestActorsAt(-1))
-	client, miner, ens := kit.EnsembleMinimal(t, kit.MockProofs(), opts)
+	client, miner, ens := kit.EnsembleMinimal(t, kit.MockProofs(), kit.PresealSectors(nSectors), opts)
 	ens.InterconnectAll().BeginMining(blocktime)
 
 	maddr, err := miner.ActorAddress(ctx)
@@ -41,7 +37,7 @@ func TestTerminate(t *testing.T) {
 	p, err := client.StateMinerPower(ctx, maddr, types.EmptyTSK)
 	require.NoError(t, err)
 	require.Equal(t, p.MinerPower, p.TotalPower)
-	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*nSectors))
+	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*uint64(nSectors)))
 
 	t.Log("Seal a sector")
 
@@ -54,7 +50,7 @@ func TestTerminate(t *testing.T) {
 		di, err := client.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
 		require.NoError(t, err)
 
-		waitUntil := di.PeriodStart + di.WPoStProvingPeriod + 2
+		waitUntil := di.PeriodStart + di.WPoStProvingPeriod + 20 // 20 is some slack for the proof to be submitted + applied
 		t.Logf("End for head.Height > %d", waitUntil)
 
 		ts := client.WaitTillChain(ctx, kit.HeightAtLeast(waitUntil))
@@ -66,7 +62,7 @@ func TestTerminate(t *testing.T) {
 	p, err = client.StateMinerPower(ctx, maddr, types.EmptyTSK)
 	require.NoError(t, err)
 	require.Equal(t, p.MinerPower, p.TotalPower)
-	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*nSectors))
+	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*uint64(nSectors)))
 
 	t.Log("Terminate a sector")
 
@@ -113,11 +109,14 @@ loop:
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	// need to wait for message to be mined and applied.
+	time.Sleep(5 * time.Second)
+
 	// check power decreased
 	p, err = client.StateMinerPower(ctx, maddr, types.EmptyTSK)
 	require.NoError(t, err)
 	require.Equal(t, p.MinerPower, p.TotalPower)
-	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*(nSectors-1)))
+	require.Equal(t, types.NewInt(uint64(ssz)*uint64(nSectors-1)), p.MinerPower.RawBytePower)
 
 	// check in terminated set
 	{
@@ -138,7 +137,7 @@ loop:
 	di, err := client.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
 	require.NoError(t, err)
 
-	waitUntil := di.PeriodStart + di.WPoStProvingPeriod + 2
+	waitUntil := di.PeriodStart + di.WPoStProvingPeriod + 20 // slack like above
 	t.Logf("End for head.Height > %d", waitUntil)
 	ts := client.WaitTillChain(ctx, kit.HeightAtLeast(waitUntil))
 	t.Logf("Now head.Height = %d", ts.Height())
@@ -147,5 +146,5 @@ loop:
 	require.NoError(t, err)
 
 	require.Equal(t, p.MinerPower, p.TotalPower)
-	require.Equal(t, p.MinerPower.RawBytePower, types.NewInt(uint64(ssz)*(nSectors-1)))
+	require.Equal(t, types.NewInt(uint64(ssz)*uint64(nSectors-1)), p.MinerPower.RawBytePower)
 }

@@ -196,6 +196,33 @@ func GetMaxProveCommitDuration(ver actors.Version, t abi.RegisteredSealProof) ab
 	}
 }
 
+// SetProviderCollateralSupplyTarget sets the percentage of normalized circulating
+// supply that must be covered by provider collateral in a deal. This should
+// only be used for testing.
+func SetProviderCollateralSupplyTarget(num, denom big.Int) {
+
+	market2.ProviderCollateralSupplyTarget = builtin2.BigFrac{
+		Numerator:   num,
+		Denominator: denom,
+	}
+
+	market3.ProviderCollateralSupplyTarget = builtin3.BigFrac{
+		Numerator:   num,
+		Denominator: denom,
+	}
+
+	market4.ProviderCollateralSupplyTarget = builtin4.BigFrac{
+		Numerator:   num,
+		Denominator: denom,
+	}
+
+	market5.ProviderCollateralSupplyTarget = builtin5.BigFrac{
+		Numerator:   num,
+		Denominator: denom,
+	}
+
+}
+
 func DealProviderCollateralBounds(
 	size abi.PaddedPieceSize, verified bool,
 	rawBytePower, qaPower, baselinePower abi.StoragePower,
@@ -278,13 +305,13 @@ func GetMaxSectorExpirationExtension() abi.ChainEpoch {
 	return miner5.MaxSectorExpirationExtension
 }
 
-// TODO: we'll probably need to abstract over this better in the future.
-func GetMaxPoStPartitions(p abi.RegisteredPoStProof) (int, error) {
+func GetMaxPoStPartitions(nv network.Version, p abi.RegisteredPoStProof) (int, error) {
 	sectorsPerPart, err := builtin5.PoStProofWindowPoStPartitionSectors(p)
 	if err != nil {
 		return 0, err
 	}
-	return int(miner5.AddressedSectorsMax / sectorsPerPart), nil
+	maxSectors := uint64(GetAddressedSectorsMax(nv))
+	return int(maxSectors / sectorsPerPart), nil
 }
 
 func GetDefaultSectorSize() abi.SectorSize {

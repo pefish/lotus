@@ -151,12 +151,12 @@ func (a *API) dealStarter(ctx context.Context, params *api.StartDealParams, isSt
 
 	walletKey, err := a.StateAccountKey(ctx, params.Wallet, types.EmptyTSK)
 	if err != nil {
-		return nil, xerrors.Errorf("failed resolving params.Wallet addr: %w", params.Wallet)
+		return nil, xerrors.Errorf("failed resolving params.Wallet addr (%s): %w", params.Wallet, err)
 	}
 
 	exist, err := a.WalletHas(ctx, walletKey)
 	if err != nil {
-		return nil, xerrors.Errorf("failed getting addr from wallet: %w", params.Wallet)
+		return nil, xerrors.Errorf("failed getting addr from wallet (%s): %w", params.Wallet, err)
 	}
 	if !exist {
 		return nil, xerrors.Errorf("provided address doesn't exist in wallet")
@@ -436,7 +436,19 @@ func (a *API) ClientFindData(ctx context.Context, root cid.Cid, piece *cid.Cid) 
 		if piece != nil && !piece.Equals(*p.PieceCID) {
 			continue
 		}
-		out = append(out, a.makeRetrievalQuery(ctx, p, root, piece, rm.QueryParams{}))
+
+		// do not rely on local data with respect to peer id
+		// fetch an up-to-date miner peer id from chain
+		mi, err := a.StateMinerInfo(ctx, p.Address, types.EmptyTSK)
+		if err != nil {
+			return nil, err
+		}
+		pp := rm.RetrievalPeer{
+			Address: p.Address,
+			ID:      *mi.PeerId,
+		}
+
+		out = append(out, a.makeRetrievalQuery(ctx, pp, root, piece, rm.QueryParams{}))
 	}
 
 	return out, nil
@@ -680,6 +692,8 @@ func readSubscribeEvents(ctx context.Context, dealID retrievalmarket.DealID, sub
 			return nil
 		case rm.DealStatusRejected:
 			return xerrors.Errorf("Retrieval Proposal Rejected: %s", state.Message)
+		case rm.DealStatusCancelled:
+			return xerrors.Errorf("Retrieval was cancelled externally: %s", state.Message)
 		case
 			rm.DealStatusDealNotFound,
 			rm.DealStatusErrored:

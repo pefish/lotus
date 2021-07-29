@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-bitfield"
-
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/host"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
@@ -29,7 +27,6 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-	"github.com/filecoin-project/lotus/chain/actors/policy"
 	"github.com/filecoin-project/lotus/chain/events"
 	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -52,7 +49,6 @@ var log = logging.Logger("storageminer")
 type Miner struct {
 	api     fullNodeFilteredAPI
 	feeCfg  config.MinerFeeConfig
-	h       host.Host
 	sealer  sectorstorage.SectorManager
 	ds      datastore.Batching
 	sc      sealing.SectorIDCounter
@@ -89,6 +85,7 @@ type fullNodeFilteredAPI interface {
 	StateSectorGetInfo(context.Context, address.Address, abi.SectorNumber, types.TipSetKey) (*miner.SectorOnChainInfo, error)
 	StateSectorPartition(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok types.TipSetKey) (*miner.SectorLocation, error)
 	StateMinerInfo(context.Context, address.Address, types.TipSetKey) (miner.MinerInfo, error)
+	StateMinerAvailableBalance(ctx context.Context, maddr address.Address, tok types.TipSetKey) (types.BigInt, error)
 	StateMinerDeadlines(context.Context, address.Address, types.TipSetKey) ([]api.Deadline, error)
 	StateMinerPartitions(context.Context, address.Address, uint64, types.TipSetKey) ([]api.Partition, error)
 	StateMinerProvingDeadline(context.Context, address.Address, types.TipSetKey) (*dline.Info, error)
@@ -130,7 +127,6 @@ type fullNodeFilteredAPI interface {
 // NewMiner creates a new Miner object.
 func NewMiner(api fullNodeFilteredAPI,
 	maddr address.Address,
-	h host.Host,
 	ds datastore.Batching,
 	sealer sectorstorage.SectorManager,
 	sc sealing.SectorIDCounter,
@@ -143,7 +139,6 @@ func NewMiner(api fullNodeFilteredAPI,
 	m := &Miner{
 		api:     api,
 		feeCfg:  feeCfg,
-		h:       h,
 		sealer:  sealer,
 		ds:      ds,
 		sc:      sc,
@@ -183,23 +178,21 @@ func (m *Miner) Run(ctx context.Context) error {
 		adaptedAPI = NewSealingAPIAdapter(m.api)
 
 		// Instantiate a precommit policy.
-		defaultDuration = policy.GetMaxSectorExpirationExtension() - (md.WPoStProvingPeriod * 2)
+		cfg             = sealing.GetSealingConfigFunc(m.getSealConfig)
 		provingBoundary = md.PeriodStart % md.WPoStProvingPeriod
+		provingBuffer   = md.WPoStProvingPeriod * 2
 
 		// TODO: Maybe we update this policy after actor upgrades?
-		pcp = sealing.NewBasicPreCommitPolicy(adaptedAPI, defaultDuration, provingBoundary)
+		pcp = sealing.NewBasicPreCommitPolicy(adaptedAPI, cfg, provingBoundary, provingBuffer)
 
 		// address selector.
 		as = func(ctx context.Context, mi miner.MinerInfo, use api.AddrUse, goodFunds, minFunds abi.TokenAmount) (address.Address, abi.TokenAmount, error) {
 			return m.addrSel.AddressFor(ctx, m.api, mi, use, goodFunds, minFunds)
 		}
-
-		// sealing configuration.
-		cfg = sealing.GetSealingConfigFunc(m.getSealConfig)
 	)
 
 	// Instantiate the sealing FSM.
-	m.sealing = sealing.New(adaptedAPI, m.feeCfg, evtsAdapter, m.maddr, m.ds, m.sealer, m.sc, m.verif, m.prover, &pcp, cfg, m.handleSealingNotifications, as)
+	m.sealing = sealing.New(ctx, adaptedAPI, m.feeCfg, evtsAdapter, m.maddr, m.ds, m.sealer, m.sc, m.verif, m.prover, &pcp, cfg, m.handleSealingNotifications, as)
 
 	// Run the sealing FSM.
 	go m.sealing.Run(ctx) //nolint:errcheck // logged intside the function

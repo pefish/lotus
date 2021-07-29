@@ -135,7 +135,7 @@ func (vm *VM) makeRuntime(ctx context.Context, msg *types.Message, parent *Runti
 		gasAvailable:     msg.GasLimit,
 		depth:            0,
 		numActorsCreated: 0,
-		pricelist:        PricelistByEpoch(vm.blockHeight),
+		pricelist:        PricelistByVersion(vm.ntwkVersion(ctx, vm.blockHeight)),
 		allowInternal:    true,
 		callerValidated:  false,
 		executionTrace:   types.ExecutionTrace{Msg: msg},
@@ -424,7 +424,7 @@ func (vm *VM) ApplyMessage(ctx context.Context, cmsg types.ChainMsg) (*ApplyRet,
 		return nil, err
 	}
 
-	pl := PricelistByEpoch(vm.blockHeight)
+	pl := PricelistByVersion(vm.ntwkVersion(ctx, vm.blockHeight))
 
 	msgGas := pl.OnChainMessage(cmsg.ChainLength())
 	msgGasCost := msgGas.Total()
@@ -439,6 +439,8 @@ func (vm *VM) ApplyMessage(ctx context.Context, cmsg types.ChainMsg) (*ApplyRet,
 			},
 			GasCosts: &gasOutputs,
 			Duration: time.Since(start),
+			ActorErr: aerrors.Newf(exitcode.SysErrOutOfGas,
+				"message gas limit does not cover on-chain gas costs"),
 		}, nil
 	}
 
@@ -639,15 +641,6 @@ func (vm *VM) ShouldBurn(ctx context.Context, st *state.StateTree, msg *types.Me
 	return true, nil
 }
 
-func (vm *VM) ActorBalance(addr address.Address) (types.BigInt, aerrors.ActorError) {
-	act, err := vm.cstate.GetActor(addr)
-	if err != nil {
-		return types.EmptyInt, aerrors.Absorb(err, 1, "failed to find actor")
-	}
-
-	return act.Balance, nil
-}
-
 type vmFlushKey struct{}
 
 func (vm *VM) Flush(ctx context.Context) (cid.Cid, error) {
@@ -667,6 +660,12 @@ func (vm *VM) Flush(ctx context.Context) (cid.Cid, error) {
 	}
 
 	return root, nil
+}
+
+// Get the buffered blockstore associated with the VM. This includes any temporary blocks produced
+// during this VM's execution.
+func (vm *VM) ActorStore(ctx context.Context) adt.Store {
+	return adt.WrapStore(ctx, vm.cst)
 }
 
 func linksForObj(blk block.Block, cb func(cid.Cid)) error {

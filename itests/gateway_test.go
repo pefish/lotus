@@ -5,41 +5,35 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net"
 	"testing"
 	"time"
-
-	"github.com/filecoin-project/lotus/itests/kit"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs/go-cid"
-
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/client"
-	"github.com/filecoin-project/lotus/chain/actors/policy"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/cli"
 	"github.com/filecoin-project/lotus/gateway"
+	"github.com/filecoin-project/lotus/itests/kit"
+	"github.com/filecoin-project/lotus/itests/multisig"
 	"github.com/filecoin-project/lotus/node"
 
 	init2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
 	multisig2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/multisig"
+
+	"github.com/ipfs/go-cid"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 )
 
 const (
 	maxLookbackCap            = time.Duration(math.MaxInt64)
 	maxStateWaitLookbackLimit = stmgr.LookbackNoLimit
 )
-
-func init() {
-	policy.SetSupportedProofTypes(abi.RegisteredSealProof_StackedDrg2KiBV1)
-	policy.SetConsensusMinerMinPower(abi.NewStoragePower(2048))
-	policy.SetMinVerifiedDealSize(abi.NewStoragePower(256))
-}
 
 // TestGatewayWalletMsig tests that API calls to wallet and msig can be made on a lite
 // node that is connected through a gateway to a full API node
@@ -49,7 +43,6 @@ func TestGatewayWalletMsig(t *testing.T) {
 	blocktime := 5 * time.Millisecond
 	ctx := context.Background()
 	nodes := startNodes(ctx, t, blocktime, maxLookbackCap, maxStateWaitLookbackLimit)
-	defer nodes.closer()
 
 	lite := nodes.lite
 	full := nodes.full
@@ -181,10 +174,9 @@ func TestGatewayMsigCLI(t *testing.T) {
 	blocktime := 5 * time.Millisecond
 	ctx := context.Background()
 	nodes := startNodesWithFunds(ctx, t, blocktime, maxLookbackCap, maxStateWaitLookbackLimit)
-	defer nodes.closer()
 
 	lite := nodes.lite
-	runMultisigTests(t, lite)
+	multisig.RunMultisigTests(t, lite)
 }
 
 func TestGatewayDealFlow(t *testing.T) {
@@ -193,7 +185,6 @@ func TestGatewayDealFlow(t *testing.T) {
 	blocktime := 5 * time.Millisecond
 	ctx := context.Background()
 	nodes := startNodesWithFunds(ctx, t, blocktime, maxLookbackCap, maxStateWaitLookbackLimit)
-	defer nodes.closer()
 
 	time.Sleep(5 * time.Second)
 
@@ -202,8 +193,11 @@ func TestGatewayDealFlow(t *testing.T) {
 	// so that the deal starts sealing in time
 	dealStartEpoch := abi.ChainEpoch(2 << 12)
 
-	dh := kit.NewDealHarness(t, nodes.lite, nodes.miner)
-	dealCid, res, _ := dh.MakeOnlineDeal(ctx, 6, false, dealStartEpoch)
+	dh := kit.NewDealHarness(t, nodes.lite, nodes.miner, nodes.miner)
+	dealCid, res, _ := dh.MakeOnlineDeal(context.Background(), kit.MakeFullDealParams{
+		Rseed:      6,
+		StartEpoch: dealStartEpoch,
+	})
 	dh.PerformRetrieval(ctx, dealCid, res.Root, false)
 }
 
@@ -213,16 +207,14 @@ func TestGatewayCLIDealFlow(t *testing.T) {
 	blocktime := 5 * time.Millisecond
 	ctx := context.Background()
 	nodes := startNodesWithFunds(ctx, t, blocktime, maxLookbackCap, maxStateWaitLookbackLimit)
-	defer nodes.closer()
 
 	kit.RunClientTest(t, cli.Commands, nodes.lite)
 }
 
 type testNodes struct {
-	lite   *kit.TestFullNode
-	full   *kit.TestFullNode
-	miner  *kit.TestMiner
-	closer jsonrpc.ClientCloser
+	lite  *kit.TestFullNode
+	full  *kit.TestFullNode
+	miner *kit.TestMiner
 }
 
 func startNodesWithFunds(
@@ -279,12 +271,16 @@ func startNodes(
 	handler, err := gateway.Handler(gwapi)
 	require.NoError(t, err)
 
-	srv, _ := kit.CreateRPCServer(t, handler)
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	srv, _ := kit.CreateRPCServer(t, handler, l)
 
 	// Create a gateway client API that connects to the gateway server
 	var gapi api.Gateway
 	gapi, closer, err = client.NewGatewayRPCV1(ctx, "ws://"+srv.Listener.Addr().String()+"/rpc/v1", nil)
 	require.NoError(t, err)
+	t.Cleanup(closer)
 
 	ens.FullNode(&lite,
 		kit.LiteNode(),
@@ -294,7 +290,7 @@ func startNodes(
 		),
 	).Start().InterconnectAll()
 
-	return &testNodes{lite: &lite, full: full, miner: miner, closer: closer}
+	return &testNodes{lite: &lite, full: full, miner: miner}
 }
 
 func sendFunds(ctx context.Context, fromNode *kit.TestFullNode, fromAddr address.Address, toAddr address.Address, amt types.BigInt) error {

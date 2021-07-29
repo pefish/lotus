@@ -2,15 +2,11 @@ package kit
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
-	"github.com/ipld/go-car"
-	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -18,24 +14,61 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
+	"github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
 	dag "github.com/ipfs/go-merkledag"
 	dstest "github.com/ipfs/go-merkledag/test"
 	unixfile "github.com/ipfs/go-unixfs/file"
+	"github.com/ipld/go-car"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 type DealHarness struct {
 	t      *testing.T
 	client *TestFullNode
-	miner  *TestMiner
+	main   *TestMiner
+	market *TestMiner
+}
+
+type MakeFullDealParams struct {
+	Rseed      int
+	FastRet    bool
+	StartEpoch abi.ChainEpoch
+
+	// SuspendUntilCryptoeconStable suspends deal-making, until cryptoecon
+	// parameters are stabilised. This affects projected collateral, and tests
+	// will fail in network version 13 and higher if deals are started too soon
+	// after network birth.
+	//
+	// The reason is that the formula for collateral calculation takes
+	// circulating supply into account:
+	//
+	//   [portion of power this deal will be] * [~1% of tokens].
+	//
+	// In the first epochs after genesis, the total circulating supply is
+	// changing dramatically in percentual terms. Therefore, if the deal is
+	// proposed too soon, by the time it gets published on chain, the quoted
+	// provider collateral will no longer be valid.
+	//
+	// The observation is that deals fail with:
+	//
+	//   GasEstimateMessageGas error: estimating gas used: message execution
+	//   failed: exit 16, reason: Provider collateral out of bounds. (RetCode=16)
+	//
+	// Enabling this will suspend deal-making until the network has reached a
+	// height of 300.
+	SuspendUntilCryptoeconStable bool
 }
 
 // NewDealHarness creates a test harness that contains testing utilities for deals.
-func NewDealHarness(t *testing.T, client *TestFullNode, miner *TestMiner) *DealHarness {
+func NewDealHarness(t *testing.T, client *TestFullNode, main *TestMiner, market *TestMiner) *DealHarness {
 	return &DealHarness{
 		t:      t,
 		client: client,
-		miner:  miner,
+		main:   main,
+		market: market,
 	}
 }
 
@@ -44,12 +77,22 @@ func NewDealHarness(t *testing.T, client *TestFullNode, miner *TestMiner) *DealH
 // on the storage deal. It returns when the deal is sealed.
 //
 // TODO: convert input parameters to struct, and add size as an input param.
-func (dh *DealHarness) MakeOnlineDeal(ctx context.Context, rseed int, fastRet bool, startEpoch abi.ChainEpoch) (deal *cid.Cid, res *api.ImportRes, path string) {
-	res, path = dh.client.CreateImportFile(ctx, rseed, 0)
+func (dh *DealHarness) MakeOnlineDeal(ctx context.Context, params MakeFullDealParams) (deal *cid.Cid, res *api.ImportRes, path string) {
+	res, path = dh.client.CreateImportFile(ctx, params.Rseed, 0)
 
 	dh.t.Logf("FILE CID: %s", res.Root)
 
-	deal = dh.StartDeal(ctx, res.Root, fastRet, startEpoch)
+	if params.SuspendUntilCryptoeconStable {
+		dh.t.Logf("deal-making suspending until cryptecon parameters have stabilised")
+		ts := dh.client.WaitTillChain(ctx, HeightAtLeast(300))
+		dh.t.Logf("deal-making continuing; current height is %d", ts.Height())
+	}
+
+	dp := dh.DefaultStartDealParams()
+	dp.Data.Root = res.Root
+	dp.DealStartEpoch = params.StartEpoch
+	dp.FastRetrieval = params.FastRet
+	deal = dh.StartDeal(ctx, dp)
 
 	// TODO: this sleep is only necessary because deals don't immediately get logged in the dealstore, we should fix this
 	time.Sleep(time.Second)
@@ -58,29 +101,28 @@ func (dh *DealHarness) MakeOnlineDeal(ctx context.Context, rseed int, fastRet bo
 	return deal, res, path
 }
 
-// StartDeal starts a storage deal between the client and the miner.
-func (dh *DealHarness) StartDeal(ctx context.Context, fcid cid.Cid, fastRet bool, startEpoch abi.ChainEpoch) *cid.Cid {
-	maddr, err := dh.miner.ActorAddress(ctx)
-	require.NoError(dh.t, err)
-
-	addr, err := dh.client.WalletDefaultAddress(ctx)
-	require.NoError(dh.t, err)
-
-	deal, err := dh.client.ClientStartDeal(ctx, &api.StartDealParams{
-		Data: &storagemarket.DataRef{
-			TransferType: storagemarket.TTGraphsync,
-			Root:         fcid,
-		},
-		Wallet:            addr,
-		Miner:             maddr,
+func (dh *DealHarness) DefaultStartDealParams() api.StartDealParams {
+	dp := api.StartDealParams{
+		Data:              &storagemarket.DataRef{TransferType: storagemarket.TTGraphsync},
 		EpochPrice:        types.NewInt(1000000),
-		DealStartEpoch:    startEpoch,
 		MinBlocksDuration: uint64(build.MinDealDuration),
-		FastRetrieval:     fastRet,
-	})
+	}
+
+	var err error
+	dp.Miner, err = dh.main.ActorAddress(context.Background())
 	require.NoError(dh.t, err)
 
-	return deal
+	dp.Wallet, err = dh.client.WalletDefaultAddress(context.Background())
+	require.NoError(dh.t, err)
+
+	return dp
+}
+
+// StartDeal starts a storage deal between the client and the miner.
+func (dh *DealHarness) StartDeal(ctx context.Context, dealParams api.StartDealParams) *cid.Cid {
+	dealProposalCid, err := dh.client.ClientStartDeal(ctx, &dealParams)
+	require.NoError(dh.t, err)
+	return dealProposalCid
 }
 
 // WaitDealSealed waits until the deal is sealed.
@@ -109,7 +151,7 @@ loop:
 			break loop
 		}
 
-		mds, err := dh.miner.MarketListIncompleteDeals(ctx)
+		mds, err := dh.market.MarketListIncompleteDeals(ctx)
 		require.NoError(dh.t, err)
 
 		var minerState storagemarket.StorageDealStatus
@@ -133,7 +175,7 @@ func (dh *DealHarness) WaitDealPublished(ctx context.Context, deal *cid.Cid) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	updates, err := dh.miner.MarketGetDealUpdates(subCtx)
+	updates, err := dh.market.MarketGetDealUpdates(subCtx)
 	require.NoError(dh.t, err)
 
 	for {
@@ -160,19 +202,19 @@ func (dh *DealHarness) WaitDealPublished(ctx context.Context, deal *cid.Cid) {
 }
 
 func (dh *DealHarness) StartSealingWaiting(ctx context.Context) {
-	snums, err := dh.miner.SectorsList(ctx)
+	snums, err := dh.main.SectorsList(ctx)
 	require.NoError(dh.t, err)
 
 	for _, snum := range snums {
-		si, err := dh.miner.SectorsStatus(ctx, snum, false)
+		si, err := dh.main.SectorsStatus(ctx, snum, false)
 		require.NoError(dh.t, err)
 
 		dh.t.Logf("Sector state: %s", si.State)
 		if si.State == api.SectorState(sealing.WaitDeals) {
-			require.NoError(dh.t, dh.miner.SectorStartSealing(ctx, snum))
+			require.NoError(dh.t, dh.main.SectorStartSealing(ctx, snum))
 		}
 
-		dh.miner.FlushSealingBatches(ctx)
+		dh.main.FlushSealingBatches(ctx)
 	}
 }
 
@@ -239,4 +281,43 @@ func (dh *DealHarness) ExtractFileFromCAR(ctx context.Context, file *os.File) (o
 	require.NoError(dh.t, err)
 
 	return tmpfile
+}
+
+type RunConcurrentDealsOpts struct {
+	N             int
+	FastRetrieval bool
+	CarExport     bool
+	StartEpoch    abi.ChainEpoch
+}
+
+func (dh *DealHarness) RunConcurrentDeals(opts RunConcurrentDealsOpts) {
+	errgrp, _ := errgroup.WithContext(context.Background())
+	for i := 0; i < opts.N; i++ {
+		i := i
+		errgrp.Go(func() (err error) {
+			defer dh.t.Logf("finished concurrent deal %d/%d", i, opts.N)
+			defer func() {
+				// This is necessary because golang can't deal with test
+				// failures being reported from children goroutines ¯\_(ツ)_/¯
+				if r := recover(); r != nil {
+					err = fmt.Errorf("deal failed: %s", r)
+				}
+			}()
+
+			dh.t.Logf("making storage deal %d/%d", i, opts.N)
+
+			deal, res, inPath := dh.MakeOnlineDeal(context.Background(), MakeFullDealParams{
+				Rseed:      5 + i,
+				FastRet:    opts.FastRetrieval,
+				StartEpoch: opts.StartEpoch,
+			})
+
+			dh.t.Logf("retrieving deal %d/%d", i, opts.N)
+
+			outPath := dh.PerformRetrieval(context.Background(), deal, res.Root, opts.CarExport)
+			AssertFilesEqual(dh.t, inPath, outPath)
+			return nil
+		})
+	}
+	require.NoError(dh.t, errgrp.Wait())
 }

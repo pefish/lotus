@@ -2,7 +2,6 @@ package itests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -21,9 +20,7 @@ import (
 )
 
 func TestWindowPostDispute(t *testing.T) {
-	if os.Getenv("LOTUS_TEST_WINDOW_POST") != "1" {
-		t.Skip("this takes a few minutes, set LOTUS_TEST_WINDOW_POST=1 to run")
-	}
+	kit.Expensive(t)
 
 	kit.QuietMiningLogs()
 
@@ -42,33 +39,19 @@ func TestWindowPostDispute(t *testing.T) {
 	// it doesn't submit proofs.
 	//
 	// Then we're going to manually submit bad proofs.
-	opts := kit.ConstructorOpts(kit.LatestActorsAt(-1))
+	opts := []kit.NodeOpt{kit.ConstructorOpts(kit.LatestActorsAt(-1))}
+	opts = append(opts, kit.WithAllSubsystems())
 	ens := kit.NewEnsemble(t, kit.MockProofs()).
-		FullNode(&client, opts).
-		Miner(&chainMiner, &client, opts).
-		Miner(&evilMiner, &client, opts, kit.PresealSectors(0)).
+		FullNode(&client, opts...).
+		Miner(&chainMiner, &client, opts...).
+		Miner(&evilMiner, &client, append(opts, kit.PresealSectors(0))...).
 		Start()
-
-	{
-		addrinfo, err := client.NetAddrsListen(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err := chainMiner.NetConnect(ctx, addrinfo); err != nil {
-			t.Fatal(err)
-		}
-
-		if err := evilMiner.NetConnect(ctx, addrinfo); err != nil {
-			t.Fatal(err)
-		}
-	}
 
 	defaultFrom, err := client.WalletDefaultAddress(ctx)
 	require.NoError(t, err)
 
 	// Mine with the _second_ node (the good one).
-	ens.BeginMining(blocktime, &chainMiner)
+	ens.InterconnectAll().BeginMining(blocktime, &chainMiner)
 
 	// Give the chain miner enough sectors to win every block.
 	chainMiner.PledgeSectors(ctx, 10, 0, nil)
@@ -84,7 +67,7 @@ func TestWindowPostDispute(t *testing.T) {
 
 	t.Logf("Running one proving period\n")
 
-	waitUntil := di.PeriodStart + di.WPoStProvingPeriod*2
+	waitUntil := di.PeriodStart + di.WPoStProvingPeriod*2 + 1
 	t.Logf("End for head.Height > %d", waitUntil)
 
 	ts := client.WaitTillChain(ctx, kit.HeightAtLeast(waitUntil))
@@ -228,9 +211,7 @@ func TestWindowPostDispute(t *testing.T) {
 }
 
 func TestWindowPostDisputeFails(t *testing.T) {
-	if os.Getenv("LOTUS_TEST_WINDOW_POST") != "1" {
-		t.Skip("this takes a few minutes, set LOTUS_TEST_WINDOW_POST=1 to run")
-	}
+	kit.Expensive(t)
 
 	kit.QuietMiningLogs()
 
@@ -257,7 +238,7 @@ func TestWindowPostDisputeFails(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Log("Running one proving period")
-	waitUntil := di.PeriodStart + di.WPoStProvingPeriod*2
+	waitUntil := di.PeriodStart + di.WPoStProvingPeriod*2 + 1
 	t.Logf("End for head.Height > %d", waitUntil)
 
 	ts := client.WaitTillChain(ctx, kit.HeightAtLeast(waitUntil))
@@ -335,11 +316,6 @@ func submitBadProof(
 		return err
 	}
 
-	from, err := client.WalletDefaultAddress(ctx)
-	if err != nil {
-		return err
-	}
-
 	minerInfo, err := client.StateMinerInfo(ctx, maddr, head.Key())
 	if err != nil {
 		return err
@@ -374,7 +350,7 @@ func submitBadProof(
 		Method: minerActor.Methods.SubmitWindowedPoSt,
 		Params: enc,
 		Value:  types.NewInt(0),
-		From:   from,
+		From:   owner,
 	}
 	sm, err := client.MpoolPushMessage(ctx, msg, nil)
 	if err != nil {
