@@ -1,5 +1,7 @@
 package build
 
+import "os"
+
 var CurrentCommit string
 var BuildType int
 
@@ -11,6 +13,7 @@ const (
 	BuildCalibnet     = 0x4
 	BuildNerpanet     = 0x5
 	BuildButterflynet = 0x6
+  BuildInteropnet = 0x7
 )
 
 func buildType() string {
@@ -29,14 +32,20 @@ func buildType() string {
 		return "+nerpanet"
 	case BuildButterflynet:
 		return "+butterflynet"
+	case BuildInteropnet:
+		return "+interopnet"
 	default:
 		return "+huh?"
 	}
 }
 
 // BuildVersion is the local build version, set by build system
-const BuildVersion = "1.7.1-dev"
+const BuildVersion = "1.11.2-dev"
 
 func UserVersion() string {
+	if os.Getenv("LOTUS_VERSION_IGNORE_COMMIT") == "1" {
+		return BuildVersion
+	}
+
 	return BuildVersion + buildType() + CurrentCommit
 }

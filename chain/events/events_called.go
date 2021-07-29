@@ -5,6 +5,9 @@ import (
 	"math"
 	"sync"
 
+	"github.com/filecoin-project/lotus/api"
+	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/filecoin-project/lotus/chain/stmgr"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -144,8 +147,10 @@ func (e *hcEvents) processHeadChangeEvent(rev, app []*types.TipSet) error {
 
 		// Queue up calls until there have been enough blocks to reach
 		// confidence on the message calls
-		for tid, data := range newCalls {
-			e.queueForConfidence(tid, data, nil, ts)
+		for tid, calls := range newCalls {
+			for _, data := range calls {
+				e.queueForConfidence(tid, data, nil, ts)
+			}
 		}
 
 		for at := e.lastTs.Height(); at <= ts.Height(); at++ {
@@ -462,19 +467,25 @@ type messageEvents struct {
 
 	lk       sync.RWMutex
 	matchers map[triggerID]MsgMatchFunc
+
+	blockMsgLk    sync.Mutex
+	blockMsgCache *lru.ARCCache
 }
 
 func newMessageEvents(ctx context.Context, hcAPI headChangeAPI, cs EventAPI) messageEvents {
+	blsMsgCache, _ := lru.NewARC(500)
 	return messageEvents{
-		ctx:      ctx,
-		cs:       cs,
-		hcAPI:    hcAPI,
-		matchers: make(map[triggerID]MsgMatchFunc),
+		ctx:           ctx,
+		cs:            cs,
+		hcAPI:         hcAPI,
+		matchers:      make(map[triggerID]MsgMatchFunc),
+		blockMsgLk:    sync.Mutex{},
+		blockMsgCache: blsMsgCache,
 	}
 }
 
 // Check if there are any new actor calls
-func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventData, error) {
+func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID][]eventData, error) {
 	pts, err := me.cs.ChainGetTipSet(me.ctx, ts.Parents()) // we actually care about messages in the parent tipset here
 	if err != nil {
 		log.Errorf("getting parent tipset in checkNewCalls: %s", err)
@@ -485,7 +496,7 @@ func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventDat
 	defer me.lk.RUnlock()
 
 	// For each message in the tipset
-	res := make(map[triggerID]eventData)
+	res := make(map[triggerID][]eventData)
 	me.messagesForTs(pts, func(msg *types.Message) {
 		// TODO: provide receipts
 
@@ -500,7 +511,7 @@ func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventDat
 			// If there was a match, include the message in the results for the
 			// trigger
 			if matched {
-				res[tid] = msg
+				res[tid] = append(res[tid], msg)
 			}
 		}
 	})
@@ -513,14 +524,21 @@ func (me *messageEvents) messagesForTs(ts *types.TipSet, consume func(*types.Mes
 	seen := map[cid.Cid]struct{}{}
 
 	for _, tsb := range ts.Blocks() {
-
-		msgs, err := me.cs.ChainGetBlockMessages(context.TODO(), tsb.Cid())
-		if err != nil {
-			log.Errorf("messagesForTs MessagesForBlock failed (ts.H=%d, Bcid:%s, B.Mcid:%s): %s", ts.Height(), tsb.Cid(), tsb.Messages, err)
-			// this is quite bad, but probably better than missing all the other updates
-			continue
+		me.blockMsgLk.Lock()
+		msgsI, ok := me.blockMsgCache.Get(tsb.Cid())
+		var err error
+		if !ok {
+			msgsI, err = me.cs.ChainGetBlockMessages(context.TODO(), tsb.Cid())
+			if err != nil {
+				log.Errorf("messagesForTs MessagesForBlock failed (ts.H=%d, Bcid:%s, B.Mcid:%s): %s", ts.Height(), tsb.Cid(), tsb.Messages, err)
+				// this is quite bad, but probably better than missing all the other updates
+				me.blockMsgLk.Unlock()
+				continue
+			}
+			me.blockMsgCache.Add(tsb.Cid(), msgsI)
 		}
-
+		me.blockMsgLk.Unlock()
+		msgs := msgsI.(*api.BlockMessages)
 		for _, m := range msgs.BlsMessages {
 			_, ok := seen[m.Cid()]
 			if ok {

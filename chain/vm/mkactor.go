@@ -17,6 +17,8 @@ import (
 	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
 	builtin2 "github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	builtin3 "github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	builtin4 "github.com/filecoin-project/specs-actors/v4/actors/builtin"
+	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"
@@ -39,7 +41,7 @@ var EmptyObjectCid cid.Cid
 
 // TryCreateAccountActor creates account actors from only BLS/SECP256K1 addresses.
 func TryCreateAccountActor(rt *Runtime, addr address.Address) (*types.Actor, address.Address, aerrors.ActorError) {
-	if err := rt.chargeGasSafe(PricelistByEpoch(rt.height).OnCreateActor()); err != nil {
+	if err := rt.chargeGasSafe(PricelistByVersion(rt.NetworkVersion()).OnCreateActor()); err != nil {
 		return nil, address.Undef, err
 	}
 
@@ -102,6 +104,10 @@ func newAccountActor(ver actors.Version) *types.Actor {
 		code = builtin2.AccountActorCodeID
 	case actors.Version3:
 		code = builtin3.AccountActorCodeID
+	case actors.Version4:
+		code = builtin4.AccountActorCodeID
+	case actors.Version5:
+		code = builtin5.AccountActorCodeID
 	default:
 		panic("unsupported actors version")
 	}

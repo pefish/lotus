@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/go-statemachine"
 	"github.com/filecoin-project/specs-storage/storage"
 
+	"github.com/filecoin-project/lotus/api"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/lotus/extern/storage-sealing/sealiface"
@@ -27,6 +28,18 @@ func (m *Sealing) handleWaitDeals(ctx statemachine.Context, sector SectorInfo) e
 
 	m.inputLk.Lock()
 
+	if m.creating != nil && *m.creating == sector.SectorNumber {
+		m.creating = nil
+	}
+
+	sid := m.minerSectorID(sector.SectorNumber)
+
+	if len(m.assignedPieces[sid]) > 0 {
+		m.inputLk.Unlock()
+		// got assigned more pieces in the AddPiece state
+		return ctx.Send(SectorAddPiece{})
+	}
+
 	started, err := m.maybeStartSealing(ctx, sector, used)
 	if err != nil || started {
 		delete(m.openSectors, m.minerSectorID(sector.SectorNumber))
@@ -36,16 +49,16 @@ func (m *Sealing) handleWaitDeals(ctx statemachine.Context, sector SectorInfo) e
 		return err
 	}
 
-	m.openSectors[m.minerSectorID(sector.SectorNumber)] = &openSector{
-		used: used,
-		maybeAccept: func(cid cid.Cid) error {
-			// todo check deal start deadline (configurable)
+	if _, has := m.openSectors[sid]; !has {
+		m.openSectors[sid] = &openSector{
+			used: used,
+			maybeAccept: func(cid cid.Cid) error {
+				// todo check deal start deadline (configurable)
+				m.assignedPieces[sid] = append(m.assignedPieces[sid], cid)
 
-			sid := m.minerSectorID(sector.SectorNumber)
-			m.assignedPieces[sid] = append(m.assignedPieces[sid], cid)
-
-			return ctx.Send(SectorAddPiece{})
-		},
+				return ctx.Send(SectorAddPiece{})
+			},
+		}
 	}
 
 	go func() {
@@ -224,34 +237,34 @@ func (m *Sealing) handleAddPieceFailed(ctx statemachine.Context, sector SectorIn
 	return nil
 }
 
-func (m *Sealing) AddPieceToAnySector(ctx context.Context, size abi.UnpaddedPieceSize, data storage.Data, deal DealInfo) (abi.SectorNumber, abi.PaddedPieceSize, error) {
+func (m *Sealing) SectorAddPieceToAny(ctx context.Context, size abi.UnpaddedPieceSize, data storage.Data, deal api.PieceDealInfo) (api.SectorOffset, error) {
 	log.Infof("Adding piece for deal %d (publish msg: %s)", deal.DealID, deal.PublishCid)
 	if (padreader.PaddedSize(uint64(size))) != size {
-		return 0, 0, xerrors.Errorf("cannot allocate unpadded piece")
+		return api.SectorOffset{}, xerrors.Errorf("cannot allocate unpadded piece")
 	}
 
 	sp, err := m.currentSealProof(ctx)
 	if err != nil {
-		return 0, 0, xerrors.Errorf("getting current seal proof type: %w", err)
+		return api.SectorOffset{}, xerrors.Errorf("getting current seal proof type: %w", err)
 	}
 
 	ssize, err := sp.SectorSize()
 	if err != nil {
-		return 0, 0, err
+		return api.SectorOffset{}, err
 	}
 
 	if size > abi.PaddedPieceSize(ssize).Unpadded() {
-		return 0, 0, xerrors.Errorf("piece cannot fit into a sector")
+		return api.SectorOffset{}, xerrors.Errorf("piece cannot fit into a sector")
 	}
 
 	if _, err := deal.DealProposal.Cid(); err != nil {
-		return 0, 0, xerrors.Errorf("getting proposal CID: %w", err)
+		return api.SectorOffset{}, xerrors.Errorf("getting proposal CID: %w", err)
 	}
 
 	m.inputLk.Lock()
 	if _, exist := m.pendingPieces[proposalCID(deal)]; exist {
 		m.inputLk.Unlock()
-		return 0, 0, xerrors.Errorf("piece for deal %s already pending", proposalCID(deal))
+		return api.SectorOffset{}, xerrors.Errorf("piece for deal %s already pending", proposalCID(deal))
 	}
 
 	resCh := make(chan struct {
@@ -283,7 +296,7 @@ func (m *Sealing) AddPieceToAnySector(ctx context.Context, size abi.UnpaddedPiec
 
 	res := <-resCh
 
-	return res.sn, res.offset.Padded(), res.err
+	return api.SectorOffset{Sector: res.sn, Offset: res.offset.Padded()}, res.err
 }
 
 // called with m.inputLk
@@ -350,10 +363,18 @@ func (m *Sealing) updateInput(ctx context.Context, sp abi.RegisteredSealProof) e
 			continue
 		}
 
+		avail := abi.PaddedPieceSize(ssize).Unpadded() - m.openSectors[mt.sector].used
+
+		if mt.size > avail {
+			continue
+		}
+
 		err := m.openSectors[mt.sector].maybeAccept(mt.deal)
 		if err != nil {
 			m.pendingPieces[mt.deal].accepted(mt.sector.Number, 0, err) // non-error case in handleAddPiece
 		}
+
+		m.openSectors[mt.sector].used += mt.padding + mt.size
 
 		m.pendingPieces[mt.deal].assigned = true
 		delete(toAssign, mt.deal)
@@ -362,8 +383,6 @@ func (m *Sealing) updateInput(ctx context.Context, sp abi.RegisteredSealProof) e
 			log.Errorf("sector %d rejected deal %s: %+v", mt.sector, mt.deal, err)
 			continue
 		}
-
-		delete(m.openSectors, mt.sector)
 	}
 
 	if len(toAssign) > 0 {
@@ -376,6 +395,12 @@ func (m *Sealing) updateInput(ctx context.Context, sp abi.RegisteredSealProof) e
 }
 
 func (m *Sealing) tryCreateDealSector(ctx context.Context, sp abi.RegisteredSealProof) error {
+	m.startupWait.Wait()
+
+	if m.creating != nil {
+		return nil // new sector is being created right now
+	}
+
 	cfg, err := m.getConfig()
 	if err != nil {
 		return xerrors.Errorf("getting storage config: %w", err)
@@ -393,6 +418,8 @@ func (m *Sealing) tryCreateDealSector(ctx context.Context, sp abi.RegisteredSeal
 	if err != nil {
 		return err
 	}
+
+	m.creating = &sid
 
 	log.Infow("Creating sector", "number", sid, "type", "deal", "proofType", sp)
 	return m.sectors.Send(uint64(sid), SectorStart{
@@ -422,10 +449,13 @@ func (m *Sealing) createSector(ctx context.Context, cfg sealiface.Config, sp abi
 }
 
 func (m *Sealing) StartPacking(sid abi.SectorNumber) error {
+	m.startupWait.Wait()
+
+	log.Infow("starting to seal deal sector", "sector", sid, "trigger", "user")
 	return m.sectors.Send(uint64(sid), SectorStartPacking{})
 }
 
-func proposalCID(deal DealInfo) cid.Cid {
+func proposalCID(deal api.PieceDealInfo) cid.Cid {
 	pc, err := deal.DealProposal.Cid()
 	if err != nil {
 		log.Errorf("DealProposal.Cid error: %+v", err)
