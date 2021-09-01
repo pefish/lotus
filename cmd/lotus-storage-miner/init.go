@@ -470,7 +470,7 @@ func storageMinerInit(ctx context.Context, cctx *cli.Context, api lapi.FullNode,
 
 			m := miner.NewMiner(api, epp, a, slashfilter.New(mds), j)
 			{
-				if err := m.Start(ctx); err != nil {
+				if err := m.Start(ctx); err != nil {  // 启动出块程序
 					return xerrors.Errorf("failed to start up genesis miner: %w", err)
 				}
 

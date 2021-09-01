@@ -62,12 +62,12 @@ type scheduler struct {
 	watchClosing  chan WorkerID
 	workerClosing chan WorkerID
 
-	schedule       chan *workerRequest
-	windowRequests chan *schedWindowRequest
+	schedule       chan *workerRequest  // 接收 workerRequest 的通道
+	windowRequests chan *schedWindowRequest  // 调度器接收 worker 调度请求的通道。通道的容量 20 限制了调度器的吞吐量是 20
 
 	// owned by the sh.runSched goroutine
 	schedQueue  *requestQueue
-	openWindows []*schedWindowRequest
+	openWindows []*schedWindowRequest  // 存放已经接收了的 worker 调度请求
 
 	info chan func(interface{})
 
@@ -153,7 +153,7 @@ func newScheduler(spt abi.RegisteredSealProof) *scheduler {
 		workerClosing: make(chan WorkerID),
 
 		schedule:       make(chan *workerRequest),
-		windowRequests: make(chan *schedWindowRequest, 20),
+		windowRequests: make(chan *schedWindowRequest, 20),  // 最多塞 20
 
 		schedQueue: &requestQueue{},
 
@@ -164,7 +164,7 @@ func newScheduler(spt abi.RegisteredSealProof) *scheduler {
 	}
 }
 
-func (sh *scheduler) Schedule(ctx context.Context, sector abi.SectorID, taskType sealtasks.TaskType, sel WorkerSelector, prepare WorkerAction, work WorkerAction) error {
+func (sh *scheduler) Schedule(ctx context.Context, sector abi.SectorID, taskType sealtasks.TaskType, sel WorkerSelector, prepare WorkerAction, work WorkerAction) error {  // 被调度到的话就会执行 work 函数
 	ret := make(chan workerResponse)
 
 	select {
@@ -217,7 +217,7 @@ type SchedDiagInfo struct {
 	OpenWindows []WorkerID
 }
 
-func (sh *scheduler) runSched() {
+func (sh *scheduler) runSched() {  // 调度器的主逻辑
 	defer close(sh.closed)
 
 	go sh.runWorkerWatcher()
@@ -226,7 +226,7 @@ func (sh *scheduler) runSched() {
 	var initialised bool
 
 	for {
-		var doSched bool
+		var doSched bool  // 表示是否执行调度
 
 		select {
 		case w := <-sh.newWorkers:
@@ -235,8 +235,8 @@ func (sh *scheduler) runSched() {
 		case wid := <-sh.workerClosing:
 			sh.dropWorker(wid)
 
-		case req := <-sh.schedule:
-			sh.schedQueue.Push(req)
+		case req := <-sh.schedule:  // 这里会接收 manager 带过来的任务
+			sh.schedQueue.Push(req)  // 放到 schedQueue 队列中
 			doSched = true
 
 			if sh.testSync != nil {
@@ -257,7 +257,7 @@ func (sh *scheduler) runSched() {
 			return
 		}
 
-		if doSched && initialised {
+		if doSched && initialised {  // 成立的话就执行调度
 			// First gather any pending tasks, so we go through the scheduling loop
 			// once for every added task
 		loop:
@@ -275,7 +275,7 @@ func (sh *scheduler) runSched() {
 				}
 			}
 
-			sh.trySched()
+			sh.trySched()  // 执行调度
 		}
 
 	}
@@ -319,7 +319,7 @@ func (sh *scheduler) trySched() {
 	*/
 
 	windows := make([]schedWindow, len(sh.openWindows))
-	acceptableWindows := make([][]int, sh.schedQueue.Len())
+	acceptableWindows := make([][]int, sh.schedQueue.Len())  // 每一个任务可以被哪些调度请求处理
 
 	log.Debugf("SCHED %d queued; %d open windows", sh.schedQueue.Len(), len(windows))
 
@@ -332,26 +332,26 @@ func (sh *scheduler) trySched() {
 
 	// Step 1
 	concurrency := len(sh.openWindows)
-	throttle := make(chan struct{}, concurrency)
+	throttle := make(chan struct{}, concurrency)  // 最多同时开启 openWindows 这么多个协程处理任务
 
 	var wg sync.WaitGroup
 	wg.Add(sh.schedQueue.Len())
 
-	for i := 0; i < sh.schedQueue.Len(); i++ {
+	for i := 0; i < sh.schedQueue.Len(); i++ {  // 多协程处理任务队列的的任务
 		throttle <- struct{}{}
 
 		go func(sqi int) {
 			defer wg.Done()
 			defer func() {
-				<-throttle
+				<-throttle  // 释放令牌
 			}()
 
-			task := (*sh.schedQueue)[sqi]
+			task := (*sh.schedQueue)[sqi]  // 拿出任务
 			needRes := ResourceTable[task.taskType][sh.spt]
 
 			task.indexHeap = sqi
-			for wnd, windowRequest := range sh.openWindows {
-				worker, ok := sh.workers[windowRequest.worker]
+			for wnd, windowRequest := range sh.openWindows {  // 从所有调度请求中挑选出能做这个任务的所有调度请求
+				worker, ok := sh.workers[windowRequest.worker]  // 从注册的 worker 中拿出 worker
 				if !ok {
 					log.Errorf("worker referenced by windowRequest not found (worker: %d)", windowRequest.worker)
 					// TODO: How to move forward here?
@@ -359,7 +359,7 @@ func (sh *scheduler) trySched() {
 				}
 
 				// TODO: allow bigger windows
-				if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info.Resources) {
+				if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info.Resources) {  // 根据 worker 的剩余资源（cpu、内存等等）判断这个 worker 能否处理这个任务
 					continue
 				}
 
@@ -378,15 +378,15 @@ func (sh *scheduler) trySched() {
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
 
-			if len(acceptableWindows[sqi]) == 0 {
+			if len(acceptableWindows[sqi]) == 0 {  // 没有一个调度请求可以处理这个任务，那就退出协程，不处理这个任务了
 				return
 			}
 
 			// Pick best worker (shuffle in case some workers are equally as good)
-			rand.Shuffle(len(acceptableWindows[sqi]), func(i, j int) {
+			rand.Shuffle(len(acceptableWindows[sqi]), func(i, j int) {  // 打乱所有的调度请求
 				acceptableWindows[sqi][i], acceptableWindows[sqi][j] = acceptableWindows[sqi][j], acceptableWindows[sqi][i] // nolint:scopelint
 			})
-			sort.SliceStable(acceptableWindows[sqi], func(i, j int) bool {
+			sort.SliceStable(acceptableWindows[sqi], func(i, j int) bool {  // 按照优先顺序排个序
 				wii := sh.openWindows[acceptableWindows[sqi][i]].worker // nolint:scopelint
 				wji := sh.openWindows[acceptableWindows[sqi][j]].worker // nolint:scopelint
 
@@ -410,27 +410,27 @@ func (sh *scheduler) trySched() {
 		}(i)
 	}
 
-	wg.Wait()
+	wg.Wait()  // 等待上面的所有协程处理完
 
-	log.Debugf("SCHED windows: %+v", windows)
-	log.Debugf("SCHED Acceptable win: %+v", acceptableWindows)
+	log.Debugf("SCHED windows: %+v", windows)  // 一共这么多调度请求
+	log.Debugf("SCHED Acceptable win: %+v", acceptableWindows)  // 哪些调度请求被接受了
 
 	// Step 2
 	scheduled := 0
 
-	for sqi := 0; sqi < sh.schedQueue.Len(); sqi++ {
+	for sqi := 0; sqi < sh.schedQueue.Len(); sqi++ {  // 处理任务队列的的任务。为每个任务选择最优的调度请求
 		task := (*sh.schedQueue)[sqi]
 		needRes := ResourceTable[task.taskType][sh.spt]
 
 		selectedWindow := -1
 		for _, wnd := range acceptableWindows[task.indexHeap] {
-			wid := sh.openWindows[wnd].worker
-			wr := sh.workers[wid].info.Resources
+			wid := sh.openWindows[wnd].worker  // 得到发起这个调度请求的 worker id
+			wr := sh.workers[wid].info.Resources  // 得到这个 work 的可用资源
 
 			log.Debugf("SCHED try assign sqi:%d sector %d to window %d", sqi, task.sector.Number, wnd)
 
 			// TODO: allow bigger windows
-			if !windows[wnd].allocated.canHandleRequest(needRes, wid, "schedAssign", wr) {
+			if !windows[wnd].allocated.canHandleRequest(needRes, wid, "schedAssign", wr) {  // 判断 worker 资源够不够处理
 				continue
 			}
 
@@ -442,18 +442,18 @@ func (sh *scheduler) trySched() {
 			//  task selectors, but not in the same way, so need to figure out how to do that in a non-O(n^2 way), and
 			//  without additional network roundtrips (O(n^2) could be avoided by turning acceptableWindows.[] into heaps))
 
-			selectedWindow = wnd
+			selectedWindow = wnd  // 选到了调度请求
 			break
 		}
 
-		if selectedWindow < 0 {
+		if selectedWindow < 0 {  // 没有选到，就继续处理下一个任务
 			// all windows full
 			continue
 		}
 
-		windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
+		windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)  // 把任务发给 worker。有可能多个任务发给了同一个调度请求
 
-		sh.schedQueue.Remove(sqi)
+		sh.schedQueue.Remove(sqi)  // 任务队列中移除任务
 		sqi--
 		scheduled++
 	}
@@ -495,7 +495,7 @@ func (sh *scheduler) trySched() {
 	sh.openWindows = newOpenWindows
 }
 
-func (sh *scheduler) runWorker(wid WorkerID) {
+func (sh *scheduler) runWorker(wid WorkerID) {  // 每个 worker 的主逻辑
 	var ready sync.WaitGroup
 	ready.Add(1)
 	defer ready.Wait()
@@ -533,11 +533,11 @@ func (sh *scheduler) runWorker(wid WorkerID) {
 
 		for {
 			// ask for more windows if we need them
-			for ; windowsRequested < SchedWindows; windowsRequested++ {
+			for ; windowsRequested < SchedWindows; windowsRequested++ {  // 塞 2 个 schedWindowRequest 到调度器的 windowRequests 中，表示请求给任务
 				select {
 				case sh.windowRequests <- &schedWindowRequest{
 					worker: wid,
-					done:   scheduledWindows,
+					done:   scheduledWindows,  // 通过 scheduledWindows 接收来自调度器的任务
 				}:
 				case <-sh.closing:
 					return
@@ -549,7 +549,7 @@ func (sh *scheduler) runWorker(wid WorkerID) {
 			}
 
 			select {
-			case w := <-scheduledWindows:
+			case w := <-scheduledWindows:  // worker 卡在这里等待被调度给它的任务。接到了任务的 worker 会在这里触发
 				worker.wndLk.Lock()
 				worker.activeWindows = append(worker.activeWindows, w)
 				worker.wndLk.Unlock()
@@ -571,30 +571,30 @@ func (sh *scheduler) runWorker(wid WorkerID) {
 		assignLoop:
 			// process windows in order
 			for len(worker.activeWindows) > 0 {
-				firstWindow := worker.activeWindows[0]
+				firstWindow := worker.activeWindows[0]  // 调度请求被调度器接受了，并安排了任务
 
 				// process tasks within a window, preferring tasks at lower indexes
-				for len(firstWindow.todo) > 0 {
+				for len(firstWindow.todo) > 0 {  // 如果任务数量大于 0
 					tidx := -1
 
 					worker.lk.Lock()
 					for t, todo := range firstWindow.todo {
 						needRes := ResourceTable[todo.taskType][sh.spt]
-						if worker.preparing.canHandleRequest(needRes, wid, "startPreparing", worker.info.Resources) {
+						if worker.preparing.canHandleRequest(needRes, wid, "startPreparing", worker.info.Resources) {  // 判断自己的资源够不够处理这个任务
 							tidx = t
 							break
 						}
 					}
 					worker.lk.Unlock()
 
-					if tidx == -1 {
+					if tidx == -1 {  // 没有一个任务可以处理
 						break assignLoop
 					}
 
-					todo := firstWindow.todo[tidx]
+					todo := firstWindow.todo[tidx]  // 拿出来可以处理的这个任务
 
 					log.Debugf("assign worker sector %d", todo.sector.Number)
-					err := sh.assignWorker(taskDone, wid, worker, todo)
+					err := sh.assignWorker(taskDone, wid, worker, todo)  // 做任务
 
 					if err != nil {
 						log.Error("assignWorker error: %+v", err)

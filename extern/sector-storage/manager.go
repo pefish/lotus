@@ -62,7 +62,7 @@ type SectorManager interface {
 
 type WorkerID uint64
 
-type Manager struct {
+type Manager struct {  // 统帅。接收外部请求，管理包括调度器在内的所有资源
 	scfg *ffiwrapper.Config
 
 	ls         stores.LocalStorage
@@ -121,17 +121,17 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, cfg
 	localTasks := []sealtasks.TaskType{
 		sealtasks.TTCommit1, sealtasks.TTFinalize, sealtasks.TTFetch, sealtasks.TTReadUnsealed,
 	}
-	if sc.AllowAddPiece {
+	if sc.AllowAddPiece {  // 如果 miner 自带的 worker 的 AP 功能被启用
 		localTasks = append(localTasks, sealtasks.TTAddPiece)
 	}
 	if sc.AllowPreCommit1 {
-		localTasks = append(localTasks, sealtasks.TTPreCommit1)
+		localTasks = append(localTasks, sealtasks.TTPreCommit1)  // P1 功能
 	}
 	if sc.AllowPreCommit2 {
-		localTasks = append(localTasks, sealtasks.TTPreCommit2)
+		localTasks = append(localTasks, sealtasks.TTPreCommit2)  // P2 功能
 	}
 	if sc.AllowCommit {
-		localTasks = append(localTasks, sealtasks.TTCommit2)
+		localTasks = append(localTasks, sealtasks.TTCommit2)  // C2 功能
 	}
 	if sc.AllowUnseal {
 		localTasks = append(localTasks, sealtasks.TTUnseal)
@@ -140,7 +140,7 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, cfg
 	err = m.AddWorker(ctx, NewLocalWorker(WorkerConfig{
 		SealProof: cfg.SealProofType,
 		TaskTypes: localTasks,
-	}, stor, lstor, si))
+	}, stor, lstor, si))  // 向调度器添加本地 worker（就是 miner 自带的 worker）
 	if err != nil {
 		return nil, xerrors.Errorf("adding local worker: %w", err)
 	}
@@ -166,7 +166,7 @@ func (m *Manager) AddLocalStorage(ctx context.Context, path string) error {
 	return nil
 }
 
-func (m *Manager) AddWorker(ctx context.Context, w Worker) error {
+func (m *Manager) AddWorker(ctx context.Context, w Worker) error {  // 向调度器添加一个 worker
 	info, err := w.Info(ctx)
 	if err != nil {
 		return xerrors.Errorf("getting worker info: %w", err)
@@ -342,7 +342,7 @@ func (m *Manager) SealPreCommit1(ctx context.Context, sector abi.SectorID, ticke
 	selector := newAllocSelector(m.index, stores.FTCache|stores.FTSealed, stores.PathSealing)
 
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTPreCommit1, selector, schedFetch(sector, stores.FTUnsealed, stores.PathSealing, stores.AcquireMove), func(ctx context.Context, w Worker) error {
-		p, err := w.SealPreCommit1(ctx, sector, ticket, pieces)
+		p, err := w.SealPreCommit1(ctx, sector, ticket, pieces)  // 实现者在 trackedWorker 中
 		if err != nil {
 			return err
 		}

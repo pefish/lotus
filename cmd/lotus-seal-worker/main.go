@@ -173,7 +173,7 @@ var runCmd = &cli.Command{
 		var nodeApi api.StorageMiner
 		var closer func()
 		var err error
-		for {
+		for {  // 循环连接 miner
 			nodeApi, closer, err = lcli.GetStorageMinerAPI(cctx,
 				jsonrpc.WithNoReconnect(),
 				jsonrpc.WithTimeout(30*time.Second))
@@ -343,7 +343,7 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("could not get api info: %w", err)
 		}
 
-		remote := stores.NewRemote(localStore, nodeApi, sminfo.AuthHeader(), cctx.Int("parallel-fetch-limit"))
+		remote := stores.NewRemote(localStore, nodeApi, sminfo.AuthHeader(), cctx.Int("parallel-fetch-limit"))  // 连接远程的扇区存储
 
 		// Create / expose the worker
 
@@ -363,7 +363,7 @@ var runCmd = &cli.Command{
 
 		readerHandler, readerServerOpt := rpcenc.ReaderParamDecoder()
 		rpcServer := jsonrpc.NewServer(readerServerOpt)
-		rpcServer.Register("Filecoin", apistruct.PermissionedWorkerAPI(workerApi))
+		rpcServer.Register("Filecoin", apistruct.PermissionedWorkerAPI(workerApi))  // 将 workerApi 的函数都绑定到 Filecoin 命名空间上
 
 		mux.Handle("/rpc/v0", rpcServer)
 		mux.Handle("/rpc/streams/v0/push/{uuid}", readerHandler)
@@ -425,7 +425,7 @@ var runCmd = &cli.Command{
 		log.Info("Waiting for tasks")
 
 		go func() {
-			if err := nodeApi.WorkerConnect(ctx, "ws://"+address+"/rpc/v0"); err != nil {
+			if err := nodeApi.WorkerConnect(ctx, "ws://"+address+"/rpc/v0"); err != nil {  // 向 miner 注册自己，提交了自己的 ws url
 				log.Errorf("Registering worker failed: %+v", err)
 				cancel()
 				return

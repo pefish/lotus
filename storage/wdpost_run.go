@@ -63,7 +63,7 @@ func (s *WindowPoStScheduler) recordProofsEvent(partitions []miner.PoStPartition
 }
 
 // startGeneratePoST kicks off the process of generating a PoST
-func (s *WindowPoStScheduler) startGeneratePoST(
+func (s *WindowPoStScheduler) startGeneratePoST(  // 生成 windowPost 证明
 	ctx context.Context,
 	ts *types.TipSet,
 	deadline *dline.Info,
@@ -96,7 +96,7 @@ func (s *WindowPoStScheduler) runGeneratePoST(
 	ctx, span := trace.StartSpan(ctx, "WindowPoStScheduler.generatePoST")
 	defer span.End()
 
-	posts, err := s.runPost(ctx, *deadline, ts)
+	posts, err := s.runPost(ctx, *deadline, ts)  // 为每个分区生成时空证明
 	if err != nil {
 		log.Errorf("runPost failed: %+v", err)
 		return nil, err
@@ -110,7 +110,7 @@ func (s *WindowPoStScheduler) runGeneratePoST(
 }
 
 // startSubmitPoST kicks of the process of submitting PoST
-func (s *WindowPoStScheduler) startSubmitPoST(
+func (s *WindowPoStScheduler) startSubmitPoST(  // 提交 windowPost 证明
 	ctx context.Context,
 	ts *types.TipSet,
 	deadline *dline.Info,
@@ -138,7 +138,7 @@ func (s *WindowPoStScheduler) startSubmitPoST(
 }
 
 // runSubmitPoST submits PoST
-func (s *WindowPoStScheduler) runSubmitPoST(
+func (s *WindowPoStScheduler) runSubmitPoST(  // 向链上提交所有的 windowPost 证明。每个证明都是链上一笔交易
 	ctx context.Context,
 	ts *types.TipSet,
 	deadline *dline.Info,
@@ -705,7 +705,7 @@ func (s *WindowPoStScheduler) sectorsForProof(ctx context.Context, goodSectors, 
 	return proofSectors, nil
 }
 
-func (s *WindowPoStScheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) (*types.SignedMessage, error) {
+func (s *WindowPoStScheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) (*types.SignedMessage, error) {  // 提交单个证明
 	ctx, span := trace.StartSpan(ctx, "storage.commitPost")
 	defer span.End()
 
@@ -716,7 +716,7 @@ func (s *WindowPoStScheduler) submitPost(ctx context.Context, proof *miner.Submi
 		return nil, xerrors.Errorf("could not serialize submit window post parameters: %w", aerr)
 	}
 
-	msg := &types.Message{
+	msg := &types.Message{  // 构造交易信息
 		To:     s.actor,
 		From:   s.worker,
 		Method: builtin0.MethodsMiner.SubmitWindowedPoSt,
@@ -727,7 +727,7 @@ func (s *WindowPoStScheduler) submitPost(ctx context.Context, proof *miner.Submi
 	s.setSender(ctx, msg, spec)
 
 	// TODO: consider maybe caring about the output
-	sm, err := s.api.MpoolPushMessage(ctx, msg, spec)
+	sm, err := s.api.MpoolPushMessage(ctx, msg, spec)  // 广播交易
 
 	if err != nil {
 		return nil, xerrors.Errorf("pushing message to mpool: %w", err)
@@ -736,7 +736,7 @@ func (s *WindowPoStScheduler) submitPost(ctx context.Context, proof *miner.Submi
 	log.Infof("Submitted window post: %s", sm.Cid())
 
 	go func() {
-		rec, err := s.api.StateWaitMsg(context.TODO(), sm.Cid(), build.MessageConfidence)
+		rec, err := s.api.StateWaitMsg(context.TODO(), sm.Cid(), build.MessageConfidence)  // 等待交易确认
 		if err != nil {
 			log.Error(err)
 			return

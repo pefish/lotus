@@ -282,7 +282,7 @@ func (sm *StorageMinerAPI) SectorMarkForUpgrade(ctx context.Context, id abi.Sect
 	return sm.Miner.MarkForUpgrade(id)
 }
 
-func (sm *StorageMinerAPI) WorkerConnect(ctx context.Context, url string) error {
+func (sm *StorageMinerAPI) WorkerConnect(ctx context.Context, url string) error {  // 连接远程 worker
 	w, err := connectRemoteWorker(ctx, sm, url)
 	if err != nil {
 		return xerrors.Errorf("connecting remote storage failed: %w", err)

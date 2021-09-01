@@ -4,10 +4,10 @@ type TaskType string
 
 const (
 	TTAddPiece   TaskType = "seal/v0/addpiece"
-	TTPreCommit1 TaskType = "seal/v0/precommit/1"
-	TTPreCommit2 TaskType = "seal/v0/precommit/2"
-	TTCommit1    TaskType = "seal/v0/commit/1" // NOTE: We use this to transfer the sector into miner-local storage for now; Don't use on workers!
-	TTCommit2    TaskType = "seal/v0/commit/2"
+	TTPreCommit1 TaskType = "seal/v0/precommit/1"  // PC1 功能可以放到独立的 worker 中
+	TTPreCommit2 TaskType = "seal/v0/precommit/2"  // PC2 功能可以放到独立的 worker 中
+	TTCommit1    TaskType = "seal/v0/commit/1" // NOTE: We use this to transfer the sector into miner-local storage for now; Don't use on workers! C1 功能只能放在 miner 中
+	TTCommit2    TaskType = "seal/v0/commit/2"  // C2 功能可以放到独立的 worker 中
 
 	TTFinalize TaskType = "seal/v0/finalize"
 

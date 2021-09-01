@@ -51,7 +51,7 @@ var runCmd = &cli.Command{
 			Value: true,
 		},
 	},
-	Action: func(cctx *cli.Context) error {
+	Action: func(cctx *cli.Context) error {   // 矿工程序启动入口
 		if !cctx.Bool("enable-gpu-proving") {
 			err := os.Setenv("BELLMAN_NO_GPU", "true")
 			if err != nil {
@@ -59,7 +59,7 @@ var runCmd = &cli.Command{
 			}
 		}
 
-		nodeApi, ncloser, err := lcli.GetFullNodeAPI(cctx)
+		nodeApi, ncloser, err := lcli.GetFullNodeAPI(cctx)  // 连接 lotus 全节点
 		if err != nil {
 			return xerrors.Errorf("getting full node api: %w", err)
 		}
@@ -84,7 +84,7 @@ var runCmd = &cli.Command{
 		log.Info("Checking full node sync status")
 
 		if !cctx.Bool("nosync") {
-			if err := lcli.SyncWait(ctx, nodeApi, false); err != nil {
+			if err := lcli.SyncWait(ctx, nodeApi, false); err != nil {  // 一直等待全节点同步完成
 				return xerrors.Errorf("sync wait: %w", err)
 			}
 		}

@@ -70,7 +70,7 @@ func NewWorkerRPC(ctx context.Context, addr string, requestHeader http.Header) (
 	u.Path = path.Join(u.Path, "../streams/v0/push")
 
 	var res apistruct.WorkerStruct
-	closer, err := jsonrpc.NewMergeClient(ctx, addr, "Filecoin",
+	closer, err := jsonrpc.NewMergeClient(ctx, addr, "Filecoin",  // Filecoin 命名空间（前面通过 rpcServer.Register 注册了的）中的函数就是 rpc 接口的实现
 		[]interface{}{
 			&res.Internal,
 		},

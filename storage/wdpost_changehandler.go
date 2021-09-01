@@ -237,7 +237,7 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	p.current = &currentPost{di: di}
 	curr := p.current
 	p.current.abort = p.api.startGeneratePoST(ctx, newTS, di, func(posts []miner.SubmitWindowedPoStParams, err error) {
-		p.postResults <- &postResult{ts: newTS, currPost: curr, posts: posts, err: err}
+		p.postResults <- &postResult{ts: newTS, currPost: curr, posts: posts, err: err}  // 生成的证明放入 postResults 中
 	})
 }
 
@@ -262,7 +262,7 @@ func (p *proveHandler) processPostResult(res *postResult) {
 	p.current = nil
 
 	// Add the proofs to the cache
-	p.posts.add(di, res.posts)
+	p.posts.add(di, res.posts)  // 添加进来会触发提交
 }
 
 type submitResult struct {
@@ -355,7 +355,7 @@ func (s *submitHandler) run() {
 				s.processedHeadChanges <- hc
 			}
 
-		case pi := <-s.posts.added:
+		case pi := <-s.posts.added:  // 生成好了的证明都会进这里
 			// Proof generated
 			s.processPostReady(pi)
 			if s.processedPostReady != nil {

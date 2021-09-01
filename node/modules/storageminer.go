@@ -208,7 +208,7 @@ func StorageMiner(fc config.MinerFeeConfig) func(params StorageMinerParams) (*st
 
 		lc.Append(fx.Hook{
 			OnStart: func(context.Context) error {
-				go fps.Run(ctx)
+				go fps.Run(ctx)  // 独立运行 windowPost 调度器
 				return sm.Run(ctx)
 			},
 			OnStop: sm.Stop,
@@ -367,7 +367,7 @@ func SetupBlockProducer(lc fx.Lifecycle, ds dtypes.MetadataDS, api lapi.FullNode
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			if err := m.Start(ctx); err != nil {
+			if err := m.Start(ctx); err != nil {  // 区块生产者启动出块死循环
 				return err
 			}
 			return nil

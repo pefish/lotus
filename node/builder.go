@@ -336,14 +336,14 @@ func Online() Option {
 			Override(new(*ffiwrapper.Config), modules.ProofsConfig),
 			Override(new(stores.LocalStorage), From(new(repo.LockedRepo))),
 			Override(new(sealing.SectorIDCounter), modules.SectorIDCounter),
-			Override(new(*sectorstorage.Manager), modules.SectorStorage),
+			Override(new(*sectorstorage.Manager), modules.SectorStorage),  // 这里会创建 manager
 			Override(new(ffiwrapper.Verifier), ffiwrapper.ProofVerifier),
 
 			Override(new(sectorstorage.SectorManager), From(new(*sectorstorage.Manager))),
 			Override(new(storage2.Prover), From(new(sectorstorage.SectorManager))),
 
 			Override(new(*sectorblocks.SectorBlocks), sectorblocks.NewSectorBlocks),
-			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees)),
+			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees)),  // 这里会创建 storage miner。进行 windowPost
 			Override(new(dtypes.NetworkName), modules.StorageNetworkName),
 
 			Override(new(dtypes.StagingMultiDstore), modules.StagingMultiDatastore),
@@ -363,7 +363,7 @@ func Online() Option {
 			Override(GetParamsKey, modules.GetParams),
 			Override(HandleDealsKey, modules.HandleDeals),
 			Override(new(gen.WinningPoStProver), storage.NewWinningPoStProver),
-			Override(new(*miner.Miner), modules.SetupBlockProducer),
+			Override(new(*miner.Miner), modules.SetupBlockProducer),  // 这里会启动区块生产者。进行 winningPost
 
 			Override(new(dtypes.ConsiderOnlineStorageDealsConfigFunc), modules.NewConsiderOnlineStorageDealsConfigFunc),
 			Override(new(dtypes.SetConsiderOnlineStorageDealsConfigFunc), modules.NewSetConsideringOnlineStorageDealsFunc),

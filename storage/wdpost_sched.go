@@ -41,7 +41,7 @@ type WindowPoStScheduler struct {
 	// failLk sync.Mutex
 }
 
-func NewWindowedPoStScheduler(api storageMinerApi, fc config.MinerFeeConfig, sb storage.Prover, ft sectorstorage.FaultTracker, j journal.Journal, actor address.Address, worker address.Address) (*WindowPoStScheduler, error) {
+func NewWindowedPoStScheduler(api storageMinerApi, fc config.MinerFeeConfig, sb storage.Prover, ft sectorstorage.FaultTracker, j journal.Journal, actor address.Address, worker address.Address) (*WindowPoStScheduler, error) {  // windowPost 调度器
 	mi, err := api.StateMinerInfo(context.TODO(), actor, types.EmptyTSK)
 	if err != nil {
 		return nil, xerrors.Errorf("getting sector size: %w", err)
@@ -82,14 +82,14 @@ func (s *WindowPoStScheduler) Run(ctx context.Context) {
 	chImpl := &changeHandlerAPIImpl{storageMinerApi: s.api, WindowPoStScheduler: s}
 	s.ch = newChangeHandler(chImpl, s.actor)
 	defer s.ch.shutdown()
-	s.ch.start()
+	s.ch.start()  // 启动事件监听。 proveHdlr submitHdlr
 
 	var notifs <-chan []*api.HeadChange
 	var err error
 	var gotCur bool
 
 	// not fine to panic after this point
-	for {
+	for {  // 订阅最新高度
 		if notifs == nil {
 			notifs, err = s.api.ChainNotify(ctx)
 			if err != nil {

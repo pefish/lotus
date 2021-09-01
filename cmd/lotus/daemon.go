@@ -137,7 +137,7 @@ var DaemonCmd = &cli.Command{
 			Usage: "specify path of config file to use",
 		},
 	},
-	Action: func(cctx *cli.Context) error {
+	Action: func(cctx *cli.Context) error {  // daemon 子命令的入口
 		isLite := cctx.Bool("lite")
 
 		err := runmetrics.Enable(runmetrics.RunMetricOptions{
@@ -215,8 +215,8 @@ var DaemonCmd = &cli.Command{
 			genBytes = build.MaybeGenesis()
 		}
 
-		chainfile := cctx.String("import-chain")
-		snapshot := cctx.String("import-snapshot")
+		chainfile := cctx.String("import-chain")  // 表示从全量的的离线文件中导入区块数据
+		snapshot := cctx.String("import-snapshot")  // 表示从轻量的的离线文件中导入区块数据，可以满足大部分情况
 		if chainfile != "" || snapshot != "" {
 			if chainfile != "" && snapshot != "" {
 				return fmt.Errorf("cannot specify both 'import-snapshot' and 'import-chain'")

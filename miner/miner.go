@@ -115,7 +115,7 @@ func (m *Miner) Start(ctx context.Context) error {
 		return fmt.Errorf("miner already started")
 	}
 	m.stop = make(chan struct{})
-	go m.mine(context.TODO())
+	go m.mine(context.TODO())  // 进入出块死循环
 	return nil
 }
 
@@ -146,7 +146,7 @@ func (m *Miner) niceSleep(d time.Duration) bool {
 	}
 }
 
-func (m *Miner) mine(ctx context.Context) {
+func (m *Miner) mine(ctx context.Context) {  // 出块循环
 	ctx, span := trace.StartSpan(ctx, "/mine")
 	defer span.End()
 
@@ -352,7 +352,7 @@ func (m *Miner) GetBestMiningCandidate(ctx context.Context) (*MiningBase, error)
 // This method does the following:
 //
 //  1.
-func (m *Miner) mineOne(ctx context.Context, base *MiningBase) (*types.BlockMsg, error) {
+func (m *Miner) mineOne(ctx context.Context, base *MiningBase) (*types.BlockMsg, error) {  // 出块
 	log.Debugw("attempting to mine a block", "tipset", types.LogCids(base.TipSet.Cids()))
 	start := build.Clock.Now()
 
@@ -422,7 +422,7 @@ func (m *Miner) mineOne(ctx context.Context, base *MiningBase) (*types.BlockMsg,
 	}
 
 	// get pending messages early,
-	msgs, err := m.api.MpoolSelect(context.TODO(), base.TipSet.Key(), ticket.Quality())
+	msgs, err := m.api.MpoolSelect(context.TODO(), base.TipSet.Key(), ticket.Quality())  // 从交易池中捡出一些交易
 	if err != nil {
 		return nil, xerrors.Errorf("failed to select messages for block: %w", err)
 	}
@@ -430,7 +430,7 @@ func (m *Miner) mineOne(ctx context.Context, base *MiningBase) (*types.BlockMsg,
 	tPending := build.Clock.Now()
 
 	// TODO: winning post proof
-	b, err := m.createBlock(base, m.address, ticket, winner, bvals, postProof, msgs)
+	b, err := m.createBlock(base, m.address, ticket, winner, bvals, postProof, msgs)  // 构造区块
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create block: %w", err)
 	}
