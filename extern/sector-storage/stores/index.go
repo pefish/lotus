@@ -402,11 +402,11 @@ func (i *Index) StorageBestAlloc(ctx context.Context, allocate storiface.SectorF
 
 	for _, p := range i.stores {
 		if (pathType == storiface.PathSealing) && !p.info.CanSeal {
-			log.Debugf("[yunjie]: is seal storage but can not seal")
+			log.Debugf("[yunjie]: is seal storage but can not seal on %s", p.info.ID)
 			continue
 		}
 		if (pathType == storiface.PathStorage) && !p.info.CanStore {
-			log.Debugf("[yunjie]: is store storage but can not store")
+			log.Debugf("[yunjie]: is store storage but can not store on %s", p.info.ID)
 			continue
 		}
 
