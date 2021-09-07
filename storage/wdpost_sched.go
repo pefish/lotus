@@ -106,7 +106,7 @@ func (s *WindowPoStScheduler) Run(ctx context.Context) {
 	// not fine to panic after this point
 	for {
 		if notifs == nil {
-			notifs, err = s.api.ChainNotify(ctx)
+			notifs, err = s.api.ChainNotify(ctx)  // 监听高度变化
 			if err != nil {
 				log.Errorf("ChainNotify error: %+v", err)
 
@@ -118,7 +118,7 @@ func (s *WindowPoStScheduler) Run(ctx context.Context) {
 		}
 
 		select {
-		case changes, ok := <-notifs:
+		case changes, ok := <-notifs:  // 高度有变化
 			if !ok {
 				log.Warn("window post scheduler notifs channel closed")
 				notifs = nil

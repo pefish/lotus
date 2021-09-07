@@ -204,7 +204,7 @@ func (a *StateAPI) StateMinerPartitions(ctx context.Context, m address.Address, 
 	}
 
 	var out []api.Partition
-	err = dl.ForEachPartition(func(_ uint64, part miner.Partition) error {
+	err = dl.ForEachPartition(func(_ uint64, part miner.Partition) error {  // 处理这个时间点之前的所有分区
 		allSectors, err := part.AllSectors()
 		if err != nil {
 			return xerrors.Errorf("getting AllSectors: %w", err)

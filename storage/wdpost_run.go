@@ -3,6 +3,8 @@ package storage
 import (
 	"bytes"
 	"context"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/filecoin-project/go-bitfield"
@@ -67,7 +69,7 @@ func (s *WindowPoStScheduler) recordProofsEvent(partitions []miner.PoStPartition
 }
 
 // startGeneratePoST kicks off the process of generating a PoST
-func (s *WindowPoStScheduler) startGeneratePoST(
+func (s *WindowPoStScheduler) startGeneratePoST(  // 生成 windowPost 证明
 	ctx context.Context,
 	ts *types.TipSet,
 	deadline *dline.Info,
@@ -529,7 +531,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 	}
 
 	// Get the partitions for the given deadline
-	partitions, err := s.api.StateMinerPartitions(ctx, s.actor, di.Index, ts.Key())
+	partitions, err := s.api.StateMinerPartitions(ctx, s.actor, di.Index, ts.Key())  // 拿到这个节点的这个窗口中的所有分区（链上分配的）
 	if err != nil {
 		return nil, xerrors.Errorf("getting partitions: %w", err)
 	}
@@ -541,7 +543,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 
 	// Split partitions into batches, so as not to exceed the number of sectors
 	// allowed in a single message
-	partitionBatches, err := s.batchPartitions(partitions, nv)
+	partitionBatches, err := s.batchPartitions(partitions, nv)  // 单个 msg 有最大支持的分区数，按照这个最大值进行分组
 	if err != nil {
 		return nil, err
 	}
@@ -568,53 +570,77 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 		for retries := 0; ; retries++ {
 			var partitions []miner.PoStPartition
 			var sinfos []proof2.SectorInfo
-			for partIdx, partition := range batch {
-				// TODO: Can do this in parallel
-				toProve, err := bitfield.SubtractBitField(partition.LiveSectors, partition.FaultySectors)
-				if err != nil {
-					return nil, xerrors.Errorf("removing faults from set of sectors to prove: %w", err)
-				}
-				toProve, err = bitfield.MergeBitFields(toProve, partition.RecoveringSectors)
-				if err != nil {
-					return nil, xerrors.Errorf("adding recoveries to set of sectors to prove: %w", err)
-				}
+			var wg sync.WaitGroup
+			var parallelLock sync.Mutex
+			errChan := make(chan error, 0)
+			for partIdx, partition := range batch {  // 并行化循环每个组中的分区
+				wg.Add(1)
+				go func(partIdx int, partition api.Partition) {
+					defer wg.Done()
+					toProve, err := bitfield.SubtractBitField(partition.LiveSectors, partition.FaultySectors)  // live 的减去 fault 的就是要 prove 的
+					if err != nil {
+						errChan <- xerrors.Errorf("removing faults from set of sectors to prove: %w", err)
+						return
+					}
+					toProve, err = bitfield.MergeBitFields(toProve, partition.RecoveringSectors)  // 再加上正在恢复的
+					if err != nil {
+						errChan <- xerrors.Errorf("adding recoveries to set of sectors to prove: %w", err)
+						return
+					}
 
-				good, err := s.checkSectors(ctx, toProve, ts.Key())
-				if err != nil {
-					return nil, xerrors.Errorf("checking sectors to skip: %w", err)
-				}
+					good, err := s.checkSectors(ctx, toProve, ts.Key())  // 过滤掉坏的扇区
+					if err != nil {
+						errChan <- xerrors.Errorf("checking sectors to skip: %w", err)
+						return
+					}
 
-				good, err = bitfield.SubtractBitField(good, postSkipped)
-				if err != nil {
-					return nil, xerrors.Errorf("toProve - postSkipped: %w", err)
-				}
+					good, err = bitfield.SubtractBitField(good, postSkipped)  // 过滤掉应该跳过的扇区
+					if err != nil {
+						errChan <- xerrors.Errorf("toProve - postSkipped: %w", err)
+						return
+					}
 
-				skipped, err := bitfield.SubtractBitField(toProve, good)
-				if err != nil {
-					return nil, xerrors.Errorf("toProve - good: %w", err)
-				}
+					skipped, err := bitfield.SubtractBitField(toProve, good)  // 得到跳过的扇区
+					if err != nil {
+						errChan <- xerrors.Errorf("toProve - good: %w", err)
+						return
+					}
 
-				sc, err := skipped.Count()
-				if err != nil {
-					return nil, xerrors.Errorf("getting skipped sector count: %w", err)
-				}
+					sc, err := skipped.Count()
+					if err != nil {
+						errChan <- xerrors.Errorf("getting skipped sector count: %w", err)
+						return
+					}
 
-				skipCount += sc
+					atomic.AddUint64(&skipCount, sc)
 
-				ssi, err := s.sectorsForProof(ctx, good, partition.AllSectors, ts)
-				if err != nil {
-					return nil, xerrors.Errorf("getting sorted sector info: %w", err)
-				}
+					ssi, err := s.sectorsForProof(ctx, good, partition.AllSectors, ts)  // 得到这个分区中所有扇区的一些信息。坏的或者跳过的都是用第一个正常的扇区替代
+					if err != nil {
+						errChan <- xerrors.Errorf("getting sorted sector info: %w", err)
+						return
+					}
 
-				if len(ssi) == 0 {
-					continue
-				}
+					if len(ssi) == 0 {
+						return
+					}
 
-				sinfos = append(sinfos, ssi...)
-				partitions = append(partitions, miner.PoStPartition{
-					Index:   uint64(batchPartitionStartIdx + partIdx),
-					Skipped: skipped,
-				})
+					parallelLock.Lock()
+					defer parallelLock.Unlock()
+					sinfos = append(sinfos, ssi...)
+					partitions = append(partitions, miner.PoStPartition{
+						Index:   uint64(batchPartitionStartIdx + partIdx),
+						Skipped: skipped,
+					})
+				}(partIdx, partition)
+			}
+
+			wg.Wait()  // 等待并行处理完成
+
+			select {
+			case err := <- errChan:  // 检查并行处理是否出现错误
+				return nil, err
+			default:
+
 			}
 
 			if len(sinfos) == 0 {
@@ -636,7 +662,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 				return nil, err
 			}
 
-			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...))
+			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...))  // 给这一批分区中所有的扇区生成时空证明
 			elapsed := time.Since(tsStart)
 
 			log.Infow("computing window post", "batch", batchIdx, "elapsed", elapsed)
@@ -657,14 +683,14 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 					return nil, xerrors.Errorf("failed to get chain randomness from beacon for window post (ts=%d; deadline=%d): %w", ts.Height(), di, err)
 				}
 
-				if !bytes.Equal(checkRand, rand) {
+				if !bytes.Equal(checkRand, rand) {  // 提交前再校验一下随机数
 					log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand, "ts-height", ts.Height(), "challenge-height", di.Challenge, "tsk", ts.Key())
 					rand = checkRand
 					continue
 				}
 
 				// If we generated an incorrect proof, try again.
-				if correct, err := s.verifier.VerifyWindowPoSt(ctx, proof.WindowPoStVerifyInfo{
+				if correct, err := s.verifier.VerifyWindowPoSt(ctx, proof.WindowPoStVerifyInfo{  // 本地校验一下上面生成的证明信息
 					Randomness:        abi.PoStRandomness(checkRand),
 					Proofs:            postOut,
 					ChallengedSectors: sinfos,
@@ -682,7 +708,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 				somethingToProve = true
 				params.Partitions = partitions
 				params.Proofs = postOut
-				break
+				break  // 跳出重试
 			}
 
 			// Proof generation failed, so retry
@@ -716,7 +742,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 			continue
 		}
 
-		posts = append(posts, params)
+		posts = append(posts, params)  // 每一批分区的证明结果存入 posts 中
 	}
 
 	return posts, nil
@@ -768,7 +794,7 @@ func (s *WindowPoStScheduler) batchPartitions(partitions []api.Partition, nv net
 }
 
 func (s *WindowPoStScheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors bitfield.BitField, ts *types.TipSet) ([]proof2.SectorInfo, error) {
-	sset, err := s.api.StateMinerSectors(ctx, s.actor, &goodSectors, ts.Key())
+	sset, err := s.api.StateMinerSectors(ctx, s.actor, &goodSectors, ts.Key())  // 拿到这些正常扇区的详细信息
 	if err != nil {
 		return nil, err
 	}

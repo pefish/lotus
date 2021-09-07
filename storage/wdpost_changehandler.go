@@ -53,7 +53,7 @@ func (ch *changeHandler) start() {
 
 func (ch *changeHandler) update(ctx context.Context, revert *types.TipSet, advance *types.TipSet) error {
 	// Get the current deadline period
-	di, err := ch.api.StateMinerProvingDeadline(ctx, ch.actor, advance.Key())
+	di, err := ch.api.StateMinerProvingDeadline(ctx, ch.actor, advance.Key())  // 根据当前高度以及矿工账户得到当前窗口信息
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (ch *changeHandler) update(ctx context.Context, revert *types.TipSet, advan
 	}
 
 	select {
-	case ch.proveHdlr.hcs <- hc:
+	case ch.proveHdlr.hcs <- hc:  // hc 传给 proveHdlr，通知其可以证明这个窗口了
 	case <-ch.proveHdlr.shutdownCtx.Done():
 	case <-ctx.Done():
 	}
@@ -193,7 +193,7 @@ func (p *proveHandler) run() {
 		case <-p.shutdownCtx.Done():
 			return
 
-		case hc := <-p.hcs:
+		case hc := <-p.hcs:  // 监听了区块高度的变化
 			// Head changed
 			p.processHeadChange(hc.ctx, hc.advance, hc.di)
 			if p.processedHeadChanges != nil {
@@ -210,9 +210,9 @@ func (p *proveHandler) run() {
 	}
 }
 
-func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSet, di *dline.Info) {
+func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSet, di *dline.Info) {  // 高度变化都会调用这里
 	// If the post window has expired, abort the current proof
-	if p.current != nil && newTS.Height() >= p.current.di.Close {
+	if p.current != nil && newTS.Height() >= p.current.di.Close { // 如果上次处理的窗口已经过期结束了，则不要处理上一个窗口了
 		// Cancel the context on the current proof
 		p.current.abort()
 
@@ -223,13 +223,13 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	}
 
 	// Only generate one proof at a time
-	if p.current != nil {
+	if p.current != nil {  // 阻止一个窗口处理多次
 		return
 	}
 
 	// If the proof for the current post window has been generated, check the
 	// next post window
-	_, complete := p.posts.get(di)
+	_, complete := p.posts.get(di)  // 如果这个窗口已经处理过了，则处理下一个
 	for complete {
 		di = nextDeadline(di)
 		_, complete = p.posts.get(di)
