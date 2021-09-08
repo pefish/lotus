@@ -573,6 +573,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 			var wg sync.WaitGroup
 			var parallelLock sync.Mutex
 			errChan := make(chan error, 0)
+			log.Warnw("[yunjie]: test/start fetch sectors's info parallel")
 			for partIdx, partition := range batch {  // 并行化循环每个组中的分区
 				wg.Add(1)
 				go func(partIdx int, partition api.Partition) {
@@ -635,6 +636,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 			}
 
 			wg.Wait()  // 等待并行处理完成
+			log.Warnw("[yunjie]: test finished/start fetch sectors's info parallel")
 
 			select {
 			case err := <- errChan:  // 检查并行处理是否出现错误

@@ -43,7 +43,7 @@ func (sb *Sealer) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, s
 
 	var proof []proof5.PoStProof
 	var faulty []abi.SectorNumber
-	if len(privsectors.Values()) > 1 {
+	if len(privsectors.Values()) > 1 && false {
 		log.Warnw("[yunjie]: test GenerateWindowPoSt separately")
 		proof1, faulty1, err := ffi.GenerateWindowPoSt(minerID, ffi.NewSortedPrivateSectorInfo(privsectors.Values()[0]), randomness)
 		if err != nil {
