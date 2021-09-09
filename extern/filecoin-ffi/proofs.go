@@ -667,12 +667,33 @@ func GenerateWindowPoSt(
 		return nil, nil, err
 	}
 
-	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas, filReplicasLen, proverID)
+	resp1 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[:1], 1, proverID)
+	resp1.Deref()
+	resp1.ProofsPtr = make([]generated.FilPoStProof, resp1.ProofsLen)
+	resp1.Deref()
+	resp1.FaultySectorsPtr = resp1.FaultySectorsPtr[:resp1.FaultySectorsLen]
+	defer generated.FilDestroyGenerateWindowPostResponse(resp1)
+
+	faultySectors1, err := fromFilPoStFaultySectors(resp1.FaultySectorsPtr, resp1.FaultySectorsLen)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
+	}
+
+	if resp1.StatusCode != generated.FCPResponseStatusFCPNoError {
+		return nil, faultySectors1, errors.New(generated.RawString(resp1.ErrorMsg).Copy())
+	}
+
+	proofs1, err := fromFilPoStProofs(resp1.ProofsPtr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+
+	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
 	resp.Deref()
 	resp.ProofsPtr = make([]generated.FilPoStProof, resp.ProofsLen)
 	resp.Deref()
 	resp.FaultySectorsPtr = resp.FaultySectorsPtr[:resp.FaultySectorsLen]
-
 	defer generated.FilDestroyGenerateWindowPostResponse(resp)
 
 	faultySectors, err := fromFilPoStFaultySectors(resp.FaultySectorsPtr, resp.FaultySectorsLen)
@@ -689,7 +710,7 @@ func GenerateWindowPoSt(
 		return nil, nil, err
 	}
 
-	return proofs, faultySectors, nil
+	return append(proofs, proofs1...), append(faultySectors, faultySectors1...), nil
 }
 
 // GetGPUDevices produces a slice of strings, each representing the name of a

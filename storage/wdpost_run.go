@@ -543,7 +543,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 
 	// Split partitions into batches, so as not to exceed the number of sectors
 	// allowed in a single message
-	partitionBatches, err := s.batchPartitions(partitions, nv)  // 单个 msg 有最大支持的分区数，按照这个最大值进行分组
+	partitionBatches, err := s.batchPartitions(partitions, nv)  // 单个 msg 有最大支持的分区数，按照这个最大值进行分组。例如单个 msg 最大支持 2 个分区，而当前窗口有 5 个分区，则会分成 2 2 1 这 3 个组，最后会向链上发出 3 笔交易
 	if err != nil {
 		return nil, err
 	}

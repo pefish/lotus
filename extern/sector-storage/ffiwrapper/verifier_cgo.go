@@ -4,6 +4,7 @@ package ffiwrapper
 
 import (
 	"context"
+
 	"go.opencensus.io/trace"
 	"golang.org/x/xerrors"
 
@@ -41,27 +42,7 @@ func (sb *Sealer) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, s
 		return nil, skipped, xerrors.Errorf("pubSectorToPriv skipped some sectors")
 	}
 
-	var proof []proof5.PoStProof
-	var faulty []abi.SectorNumber
-	if len(privsectors.Values()) > 1 && false {
-		log.Warnw("[yunjie]: test GenerateWindowPoSt separately")
-		proof1, faulty1, err := ffi.GenerateWindowPoSt(minerID, ffi.NewSortedPrivateSectorInfo(privsectors.Values()[0]), randomness)
-		if err != nil {
-			return nil, nil, err
-		}
-		proof2, faulty2, err := ffi.GenerateWindowPoSt(minerID, ffi.NewSortedPrivateSectorInfo(privsectors.Values()[1:]...), randomness)
-		if err != nil {
-			return nil, nil, err
-		}
-		proof = append(proof1, proof2...)
-		faulty= append(faulty1, faulty2...)
-	} else {
-		log.Warnw("[yunjie]: GenerateWindowPoSt")
-		proof, faulty, err = ffi.GenerateWindowPoSt(minerID, privsectors, randomness)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
+	proof, faulty, err := ffi.GenerateWindowPoSt(minerID, privsectors, randomness)
 
 	var faultyIDs []abi.SectorID
 	for _, f := range faulty {
@@ -71,7 +52,7 @@ func (sb *Sealer) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, s
 		})
 	}
 
-	return proof, faultyIDs, nil
+	return proof, faultyIDs, err
 }
 
 func (sb *Sealer) pubSectorToPriv(ctx context.Context, mid abi.ActorID, sectorInfo []proof5.SectorInfo, faults []abi.SectorNumber, rpt func(abi.RegisteredSealProof) (abi.RegisteredPoStProof, error)) (ffi.SortedPrivateSectorInfo, []abi.SectorID, func(), error) {
