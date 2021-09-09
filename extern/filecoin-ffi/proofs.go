@@ -7,6 +7,9 @@ package ffi
 // #include "./filcrypto.h"
 import "C"
 import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"os"
 	"runtime"
 	"unsafe"
@@ -687,9 +690,33 @@ func GenerateWindowPoSt(
 	if err != nil {
 		return nil, nil, err
 	}
+	d, err := json.Marshal(proofs1)
+	fmt.Println("[yunjie]: proofs1. %s", hex.EncodeToString(d))
 
+	resp2 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
+	resp2.Deref()
+	resp2.ProofsPtr = make([]generated.FilPoStProof, resp2.ProofsLen)
+	resp2.Deref()
+	resp2.FaultySectorsPtr = resp2.FaultySectorsPtr[:resp2.FaultySectorsLen]
+	defer generated.FilDestroyGenerateWindowPostResponse(resp2)
 
-	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
+	faultySectors2, err := fromFilPoStFaultySectors(resp2.FaultySectorsPtr, resp2.FaultySectorsLen)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
+	}
+
+	if resp2.StatusCode != generated.FCPResponseStatusFCPNoError {
+		return nil, faultySectors2, errors.New(generated.RawString(resp2.ErrorMsg).Copy())
+	}
+
+	proofs2, err := fromFilPoStProofs(resp2.ProofsPtr)
+	if err != nil {
+		return nil, nil, err
+	}
+	d2, err := json.Marshal(proofs2)
+	fmt.Println("[yunjie]: proofs2. %s", hex.EncodeToString(d2))
+
+	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas, filReplicasLen, proverID)
 	resp.Deref()
 	resp.ProofsPtr = make([]generated.FilPoStProof, resp.ProofsLen)
 	resp.Deref()
@@ -709,8 +736,10 @@ func GenerateWindowPoSt(
 	if err != nil {
 		return nil, nil, err
 	}
+	d1, err := json.Marshal(proofs)
+	fmt.Println("[yunjie]: proofs. %s", hex.EncodeToString(d1))
 
-	return append(proofs, proofs1...), append(faultySectors, faultySectors1...), nil
+	return proofs, faultySectors, nil
 }
 
 // GetGPUDevices produces a slice of strings, each representing the name of a
