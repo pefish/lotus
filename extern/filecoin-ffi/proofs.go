@@ -690,8 +690,8 @@ func GenerateWindowPoSt(
 	if err != nil {
 		return nil, nil, err
 	}
-	d, err := json.Marshal(proofs1)
-	fmt.Println("[yunjie]: proofs1. %s", hex.EncodeToString(d))
+	d1, err := json.Marshal(proofs1)
+	fmt.Printf("[yunjie]: proofs1: %s, length: %d\n", hex.EncodeToString(d1), len(d1))
 
 	resp2 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
 	resp2.Deref()
@@ -714,7 +714,7 @@ func GenerateWindowPoSt(
 		return nil, nil, err
 	}
 	d2, err := json.Marshal(proofs2)
-	fmt.Println("[yunjie]: proofs2. %s", hex.EncodeToString(d2))
+	fmt.Printf("[yunjie]: proofs2: %s, length: %d\n", hex.EncodeToString(d2), len(proofs2))
 
 	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas, filReplicasLen, proverID)
 	resp.Deref()
@@ -736,8 +736,12 @@ func GenerateWindowPoSt(
 	if err != nil {
 		return nil, nil, err
 	}
-	d1, err := json.Marshal(proofs)
-	fmt.Println("[yunjie]: proofs. %s", hex.EncodeToString(d1))
+	d, err := json.Marshal(proofs)
+	fmt.Printf("[yunjie]: proofs: %s, length: %d\n", hex.EncodeToString(d), len(d))
+
+
+	d3, err := json.Marshal(append(proofs1, proofs2...))
+	fmt.Printf("[yunjie]: proofs12: %s, length: %d\n", hex.EncodeToString(d3), len(d3))
 
 	return proofs, faultySectors, nil
 }
