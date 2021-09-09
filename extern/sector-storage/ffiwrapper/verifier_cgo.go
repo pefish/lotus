@@ -4,6 +4,7 @@ package ffiwrapper
 
 import (
 	"context"
+	"fmt"
 
 	"go.opencensus.io/trace"
 	"golang.org/x/xerrors"
@@ -32,11 +33,15 @@ func (sb *Sealer) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, 
 
 func (sb *Sealer) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectorInfo []proof5.SectorInfo, randomness abi.PoStRandomness) ([]proof5.PoStProof, []abi.SectorID, error) {
 	randomness[31] &= 0x3f
-	privsectors, skipped, done, err := sb.pubSectorToPriv(ctx, minerID, sectorInfo, nil, abi.RegisteredSealProof.RegisteredWindowPoStProof)
+	privsectors, skipped, done, err := sb.pubSectorToPriv(ctx, minerID, sectorInfo, nil, abi.RegisteredSealProof.RegisteredWindowPoStProof)  // 这里会把扇区所在的文件路径找出来
 	if err != nil {
 		return nil, nil, xerrors.Errorf("gathering sector info: %w", err)
 	}
 	defer done()
+
+	for _, a := range privsectors.Values() {
+		fmt.Printf("[yunjie]: CacheDirPath: %s, SealedSectorPath: %s\n", a.CacheDirPath, a.SealedSectorPath)
+	}
 
 	if len(skipped) > 0 {
 		return nil, skipped, xerrors.Errorf("pubSectorToPriv skipped some sectors")

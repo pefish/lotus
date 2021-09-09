@@ -615,7 +615,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 
 					atomic.AddUint64(&skipCount, sc)
 
-					ssi, err := s.sectorsForProof(ctx, good, partition.AllSectors, ts)  // 得到这个分区中所有扇区的一些信息。坏的或者跳过的都是用第一个正常的扇区替代
+					ssi, err := s.sectorsForProof(ctx, good, partition.AllSectors, ts)  // 得到这个分区中所有扇区的一些信息（扇区id、扇区密封证明等信息）。坏的或者跳过的都是用第一个正常的扇区替代
 					if err != nil {
 						errChan <- xerrors.Errorf("getting sorted sector info: %w", err)
 						return

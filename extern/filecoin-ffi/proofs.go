@@ -7,9 +7,6 @@ package ffi
 // #include "./filcrypto.h"
 import "C"
 import (
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"os"
 	"runtime"
 	"unsafe"
@@ -670,51 +667,51 @@ func GenerateWindowPoSt(
 		return nil, nil, err
 	}
 
-	resp1 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[:1], 1, proverID)
-	resp1.Deref()
-	resp1.ProofsPtr = make([]generated.FilPoStProof, resp1.ProofsLen)
-	resp1.Deref()
-	resp1.FaultySectorsPtr = resp1.FaultySectorsPtr[:resp1.FaultySectorsLen]
-	defer generated.FilDestroyGenerateWindowPostResponse(resp1)
+	//resp1 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[:1], 1, proverID)
+	//resp1.Deref()
+	//resp1.ProofsPtr = make([]generated.FilPoStProof, resp1.ProofsLen)
+	//resp1.Deref()
+	//resp1.FaultySectorsPtr = resp1.FaultySectorsPtr[:resp1.FaultySectorsLen]
+	//defer generated.FilDestroyGenerateWindowPostResponse(resp1)
+	//
+	//faultySectors1, err := fromFilPoStFaultySectors(resp1.FaultySectorsPtr, resp1.FaultySectorsLen)
+	//if err != nil {
+	//	return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
+	//}
+	//
+	//if resp1.StatusCode != generated.FCPResponseStatusFCPNoError {
+	//	return nil, faultySectors1, errors.New(generated.RawString(resp1.ErrorMsg).Copy())
+	//}
+	//
+	//proofs1, err := fromFilPoStProofs(resp1.ProofsPtr)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
+	//d1, err := json.Marshal(proofs1)
+	//fmt.Printf("[yunjie]: proofs1: %s, length: %d\n", hex.EncodeToString(d1), len(proofs1))  // len: 1
 
-	faultySectors1, err := fromFilPoStFaultySectors(resp1.FaultySectorsPtr, resp1.FaultySectorsLen)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
-	}
-
-	if resp1.StatusCode != generated.FCPResponseStatusFCPNoError {
-		return nil, faultySectors1, errors.New(generated.RawString(resp1.ErrorMsg).Copy())
-	}
-
-	proofs1, err := fromFilPoStProofs(resp1.ProofsPtr)
-	if err != nil {
-		return nil, nil, err
-	}
-	d1, err := json.Marshal(proofs1)
-	fmt.Printf("[yunjie]: proofs1: %s, length: %d\n", hex.EncodeToString(d1), len(proofs1))
-
-	resp2 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
-	resp2.Deref()
-	resp2.ProofsPtr = make([]generated.FilPoStProof, resp2.ProofsLen)
-	resp2.Deref()
-	resp2.FaultySectorsPtr = resp2.FaultySectorsPtr[:resp2.FaultySectorsLen]
-	defer generated.FilDestroyGenerateWindowPostResponse(resp2)
-
-	faultySectors2, err := fromFilPoStFaultySectors(resp2.FaultySectorsPtr, resp2.FaultySectorsLen)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
-	}
-
-	if resp2.StatusCode != generated.FCPResponseStatusFCPNoError {
-		return nil, faultySectors2, errors.New(generated.RawString(resp2.ErrorMsg).Copy())
-	}
-
-	proofs2, err := fromFilPoStProofs(resp2.ProofsPtr)
-	if err != nil {
-		return nil, nil, err
-	}
-	d2, err := json.Marshal(proofs2)
-	fmt.Printf("[yunjie]: proofs2: %s, length: %d\n", hex.EncodeToString(d2), len(proofs2))
+	//resp2 := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas[1:], filReplicasLen - 1, proverID)
+	//resp2.Deref()
+	//resp2.ProofsPtr = make([]generated.FilPoStProof, resp2.ProofsLen)
+	//resp2.Deref()
+	//resp2.FaultySectorsPtr = resp2.FaultySectorsPtr[:resp2.FaultySectorsLen]
+	//defer generated.FilDestroyGenerateWindowPostResponse(resp2)
+	//
+	//faultySectors2, err := fromFilPoStFaultySectors(resp2.FaultySectorsPtr, resp2.FaultySectorsLen)
+	//if err != nil {
+	//	return nil, nil, xerrors.Errorf("failed to parse faulty sectors list: %w", err)
+	//}
+	//
+	//if resp2.StatusCode != generated.FCPResponseStatusFCPNoError {
+	//	return nil, faultySectors2, errors.New(generated.RawString(resp2.ErrorMsg).Copy())
+	//}
+	//
+	//proofs2, err := fromFilPoStProofs(resp2.ProofsPtr)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
+	//d2, err := json.Marshal(proofs2)
+	//fmt.Printf("[yunjie]: proofs2: %s, length: %d\n", hex.EncodeToString(d2), len(proofs2))  // len: 1
 
 	resp := generated.FilGenerateWindowPost(to32ByteArray(randomness), filReplicas, filReplicasLen, proverID)
 	resp.Deref()
@@ -736,12 +733,12 @@ func GenerateWindowPoSt(
 	if err != nil {
 		return nil, nil, err
 	}
-	d, err := json.Marshal(proofs)
-	fmt.Printf("[yunjie]: proofs: %s, length: %d\n", hex.EncodeToString(d), len(proofs))
+	//d, err := json.Marshal(proofs)
+	//fmt.Printf("[yunjie]: proofs: %s, length: %d\n", hex.EncodeToString(d), len(proofs))  // len: 1
 
 
-	d3, err := json.Marshal(append(proofs1, proofs2...))
-	fmt.Printf("[yunjie]: proofs12: %s, length: %d\n", hex.EncodeToString(d3), len(append(proofs1, proofs2...)))
+	//d3, err := json.Marshal(append(proofs1, proofs2...))
+	//fmt.Printf("[yunjie]: proofs12: %s, length: %d\n", hex.EncodeToString(d3), len(append(proofs1, proofs2...)))  // len: 2
 
 	return proofs, faultySectors, nil
 }
