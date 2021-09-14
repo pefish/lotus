@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"github.com/filecoin-project/lotus/miner"
 	"time"
 
 	"go.uber.org/fx"
@@ -25,7 +26,6 @@ import (
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/markets/dealfilter"
 	"github.com/filecoin-project/lotus/markets/storageadapter"
-	"github.com/filecoin-project/lotus/miner"
 	"github.com/filecoin-project/lotus/node/config"
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
@@ -101,7 +101,9 @@ func ConfigStorageMiner(c interface{}) Option {
 			// Mining / proving
 			Override(new(*slashfilter.SlashFilter), modules.NewSlashFilter),
 			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees, config.DefaultStorageMiner().WdPost)),
-			Override(new(*miner.Miner), modules.SetupBlockProducer),
+			If(!cfg.WdPost.EnableWdPoster,
+				Override(new(*miner.Miner), modules.SetupBlockProducer),  // 这里启动了 winningPost 区块生产
+			),
 			Override(new(gen.WinningPoStProver), storage.NewWinningPoStProver),
 			Override(new(*storage.Miner), modules.StorageMiner(cfg.Fees, cfg.WdPost)),
 			Override(new(sectorblocks.SectorBuilder), From(new(*storage.Miner))),
