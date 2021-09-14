@@ -188,6 +188,11 @@ func DefaultStorageMiner() *StorageMiner {
 			TerminateControl:   []string{},
 			DealPublishControl: []string{},
 		},
+
+		WdPost: WdPostConfig{
+			WdPostServers:  []string{},
+			EnableWdPoster: false,
+		},
 	}
 	cfg.Common.API.ListenAddress = "/ip4/127.0.0.1/tcp/2345/http"
 	cfg.Common.API.RemoteListenAddress = "127.0.0.1:2345"

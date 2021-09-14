@@ -50,6 +50,7 @@ type StorageMiner struct {
 	Storage    sectorstorage.SealerConfig
 	Fees       MinerFeeConfig
 	Addresses  MinerAddressConfig
+	WdPost     WdPostConfig
 }
 
 type MinerSubsystemConfig struct {
@@ -190,6 +191,11 @@ type SealingConfig struct {
 	// todo TargetSealingSectors uint64
 
 	// todo TargetSectors - stop auto-pleding new sectors after this many sectors are sealed, default CC upgrade for deals sectors if above
+}
+
+type WdPostConfig struct {
+	WdPostServers  []string
+	EnableWdPoster bool
 }
 
 type BatchFeeConfig struct {

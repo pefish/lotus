@@ -100,10 +100,10 @@ func ConfigStorageMiner(c interface{}) Option {
 
 			// Mining / proving
 			Override(new(*slashfilter.SlashFilter), modules.NewSlashFilter),
-			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees)),
+			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees, config.DefaultStorageMiner().WdPost)),
 			Override(new(*miner.Miner), modules.SetupBlockProducer),
 			Override(new(gen.WinningPoStProver), storage.NewWinningPoStProver),
-			Override(new(*storage.Miner), modules.StorageMiner(cfg.Fees)),
+			Override(new(*storage.Miner), modules.StorageMiner(cfg.Fees, cfg.WdPost)),
 			Override(new(sectorblocks.SectorBuilder), From(new(*storage.Miner))),
 		),
 

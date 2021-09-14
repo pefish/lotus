@@ -217,7 +217,7 @@ type StorageMinerParams struct {
 	AddrSel            *storage.AddressSelector
 }
 
-func StorageMiner(fc config.MinerFeeConfig) func(params StorageMinerParams) (*storage.Miner, error) {
+func StorageMiner(fc config.MinerFeeConfig, wdPostConfig config.WdPostConfig) func(params StorageMinerParams) (*storage.Miner, error) {
 	return func(params StorageMinerParams) (*storage.Miner, error) {
 		var (
 			ds     = params.MetadataDS
@@ -245,8 +245,6 @@ func StorageMiner(fc config.MinerFeeConfig) func(params StorageMinerParams) (*st
 			return nil, err
 		}
 
-		dp := storage.NewDistributeProver(sealer)
-
 		sm, err := storage.NewMiner(api, maddr, ds, sealer, sc, verif, prover, gsd, fc, j, as)
 		if err != nil {
 			return nil, err
@@ -255,7 +253,9 @@ func StorageMiner(fc config.MinerFeeConfig) func(params StorageMinerParams) (*st
 		lc.Append(fx.Hook{
 			OnStart: func(context.Context) error {
 				go fps.Run(ctx)
-				go dp.Run(ctx)
+				if wdPostConfig.EnableWdPoster {
+					go storage.NewDistributeProver(sealer).Run(ctx)
+				}
 				return sm.Run(ctx)
 			},
 			OnStop: sm.Stop,
