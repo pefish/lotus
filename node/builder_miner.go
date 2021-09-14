@@ -111,7 +111,7 @@ func ConfigStorageMiner(c interface{}) Option {
 			// Sector storage
 			Override(new(*stores.Index), stores.NewIndex),
 			Override(new(stores.SectorIndex), From(new(*stores.Index))),
-			Override(new(*sectorstorage.Manager), modules.SectorStorage),  // 参数怎么传递的
+			Override(new(*sectorstorage.Manager), modules.SectorStorage),
 			Override(new(sectorstorage.Unsealer), From(new(*sectorstorage.Manager))),
 			Override(new(sectorstorage.SectorManager), From(new(*sectorstorage.Manager))),
 			Override(new(storiface.WorkerReturn), From(new(sectorstorage.SectorManager))),

@@ -629,6 +629,14 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 					return
 				}
 
+				//prover, err := ffiwrapper.New(&readonlyProvider{stor: lstor, index: si})
+				//if err != nil {
+				//	return nil, xerrors.Errorf("creating prover instance: %w", err)
+				//}
+
+				// 网络请求分布式 pdpost 服务端
+				//var prover ffiwrapper.DistributeProver
+				//postOut, ps, err := prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...)) // 给这一批分区中所有的扇区生成时空证明
 				postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...)) // 给这一批分区中所有的扇区生成时空证明
 				elapsed := time.Since(tsStart)
 
@@ -684,7 +692,7 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 					break // 跳出重试
 				}
 
-				// Proof generation failed, so retry
+				// Proof generation failed, so retry  生成失败，进行重试
 
 				if len(ps) == 0 {
 					// If we didn't skip any new sectors, we failed
