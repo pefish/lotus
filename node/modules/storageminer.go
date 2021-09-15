@@ -253,9 +253,6 @@ func StorageMiner(fc config.MinerFeeConfig, wdPostConfig config.WdPostConfig) fu
 		lc.Append(fx.Hook{
 			OnStart: func(context.Context) error {
 				go fps.Run(ctx)
-				if wdPostConfig.EnableWdPoster {
-					go storage.NewDistributeProver(sealer).Run(ctx)
-				}
 				return sm.Run(ctx)
 			},
 			OnStop: sm.Stop,

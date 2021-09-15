@@ -101,9 +101,7 @@ func ConfigStorageMiner(c interface{}) Option {
 			// Mining / proving
 			Override(new(*slashfilter.SlashFilter), modules.NewSlashFilter),
 			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees, config.DefaultStorageMiner().WdPost)),
-			If(!cfg.WdPost.EnableWdPoster,
-				Override(new(*miner.Miner), modules.SetupBlockProducer),  // 这里启动了 winningPost 区块生产
-			),
+			Override(new(*miner.Miner), modules.SetupBlockProducer),  // 这里启动了 winningPost 区块生产
 			Override(new(gen.WinningPoStProver), storage.NewWinningPoStProver),
 			Override(new(*storage.Miner), modules.StorageMiner(cfg.Fees, cfg.WdPost)),
 			Override(new(sectorblocks.SectorBuilder), From(new(*storage.Miner))),

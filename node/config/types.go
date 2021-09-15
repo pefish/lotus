@@ -195,7 +195,6 @@ type SealingConfig struct {
 
 type WdPostConfig struct {
 	WdPostServers  []string
-	EnableWdPoster bool
 }
 
 type BatchFeeConfig struct {
