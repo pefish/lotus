@@ -114,6 +114,7 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 		if err != nil {
 			log.Warnf("[yunjie]: WindowPoStScheduler connect wdPoster %s failed. err: %v", wdPostServerUrl, err)
 			if i == count {
+				s.activeWdPosters.Delete(wdPostServerUrl)
 				s.failedWdPosters.Store(wdPostServerUrl, true)
 				return
 			}
@@ -124,6 +125,7 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 		break
 	}
 	client := distribute_prover.NewDistributeProverClient(conn)
+	s.failedWdPosters.Delete(wdPostServerUrl)
 	s.activeWdPosters.Store(wdPostServerUrl, ActiveWdPosterData{
 		Conn:   conn,
 		Client: client,
@@ -144,6 +146,7 @@ func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)
 			log.Warnf("[yunjie]: WindowPoStScheduler ping wdPoster %s failed. reply: %s, err: %v", activeWdPoster.Url, reply, err)
 			if i == count {
 				activeWdPoster.Conn.Close()
+				s.activeWdPosters.Delete(activeWdPoster.Url)
 				s.failedWdPosters.Store(activeWdPoster.Url, true)
 				return
 			}
