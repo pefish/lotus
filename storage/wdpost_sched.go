@@ -51,10 +51,8 @@ type WindowPoStScheduler struct {
 	// failed abi.ChainEpoch // eps
 	// failLk sync.Mutex
 
-	activeWdPosters []ActiveWdPosterData
-	activeWdPostersLock sync.RWMutex
-	failedWdPosters []string
-	failedWdPostersLock sync.RWMutex
+	activeWdPosters sync.Map
+	failedWdPosters sync.Map
 }
 
 type ActiveWdPosterData struct{
@@ -95,8 +93,6 @@ func NewWindowedPoStScheduler(api fullNodeFilteredAPI,
 			evtTypeWdPoStFaults:     j.RegisterEventType("wdpost", "faults_processed"),
 		},
 		journal: j,
-		activeWdPosters: make([]ActiveWdPosterData, 0),
-		failedWdPosters: make([]string, 0),
 	}, nil
 }
 
@@ -118,9 +114,7 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 		if err != nil {
 			log.Warnf("[yunjie]: WindowPoStScheduler connect wdPoster %s failed. err: %v", wdPostServerUrl, err)
 			if i == count {
-				s.failedWdPostersLock.Lock()
-				s.failedWdPosters = append(s.failedWdPosters, wdPostServerUrl)
-				s.failedWdPostersLock.Unlock()
+				s.failedWdPosters.Store(wdPostServerUrl, true)
 				return
 			}
 			time.Sleep(2 * time.Second)
@@ -130,13 +124,11 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 		break
 	}
 	client := distribute_prover.NewDistributeProverClient(conn)
-	s.activeWdPostersLock.Lock()
-	s.activeWdPosters = append(s.activeWdPosters, ActiveWdPosterData{
+	s.activeWdPosters.Store(wdPostServerUrl, ActiveWdPosterData{
 		Conn:   conn,
 		Client: client,
 		Url: wdPostServerUrl,
 	})
-	s.activeWdPostersLock.Unlock()
 	log.Infof("[yunjie]: WindowPoStScheduler connected wdPoster %s", wdPostServerUrl)
 }
 
@@ -152,9 +144,7 @@ func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)
 			log.Warnf("[yunjie]: WindowPoStScheduler ping wdPoster %s failed. reply: %s, err: %v", activeWdPoster.Url, reply.Msg, err)
 			if i == count {
 				activeWdPoster.Conn.Close()
-				s.failedWdPostersLock.Lock()
-				s.failedWdPosters = append(s.failedWdPosters, activeWdPoster.Url)
-				s.failedWdPostersLock.Unlock()
+				s.failedWdPosters.Store(activeWdPoster.Url, true)
 				return
 			}
 			time.Sleep(2 * time.Second)
@@ -168,17 +158,15 @@ func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)
 func (s *WindowPoStScheduler) heartbeatWdPosters()  {
 	for {
 		// 连接失败的反复尝试
-		s.failedWdPostersLock.RLock()
-		for _, failedWdPosterUrl := range s.failedWdPosters {
-			s.connectOneWdPoster(failedWdPosterUrl)
-		}
-		s.failedWdPostersLock.RUnlock()
+		s.failedWdPosters.Range(func(key, value interface{}) bool {
+			s.connectOneWdPoster(value.(string))
+			return true
+		})
 		// 连接成功的反复 ping
-		s.activeWdPostersLock.RLock()
-		for _, activeWdPoster := range s.activeWdPosters {
-			s.pingOneWdPoster(activeWdPoster)
-		}
-		s.activeWdPostersLock.RUnlock()
+		s.activeWdPosters.Range(func(key, value interface{}) bool {
+			s.pingOneWdPoster(value.(ActiveWdPosterData))
+			return true
+		})
 
 		time.Sleep(10 * time.Second)
 	}
@@ -207,9 +195,6 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 	if len(wdPostConfig.WdPostServers) > 0 {
 		s.connectWdPosters(wdPostConfig.WdPostServers)
 	}
-	s.activeWdPostersLock.RLock()
-	log.Infof("[yunjie] WindowPoStScheduler connected %d wdPosters", len(s.activeWdPosters))
-	s.activeWdPostersLock.RUnlock()
 	// 协程开启心跳
 	go s.heartbeatWdPosters()
 
