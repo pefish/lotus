@@ -175,6 +175,13 @@ func (s *WindowPoStScheduler) heartbeatWdPosters()  {
 	}
 }
 
+func (s *WindowPoStScheduler) Close()  {
+	s.activeWdPosters.Range(func(key, value interface{}) bool {
+		value.(ActiveWdPosterData).Conn.Close()
+		return true
+	})
+}
+
 func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPostConfig) {
 	// Initialize change handler.
 
@@ -197,9 +204,9 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 	// 如果是分布式 wdposter ，则连接 wdposters
 	if len(wdPostConfig.WdPostServers) > 0 {
 		s.connectWdPosters(wdPostConfig.WdPostServers)
+		// 协程开启心跳
+		go s.heartbeatWdPosters()
 	}
-	// 协程开启心跳
-	go s.heartbeatWdPosters()
 
 	// not fine to panic after this point
 	for {
@@ -263,6 +270,7 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 
 			span.End()
 		case <-ctx.Done():
+			s.Close()
 			return
 		}
 	}
