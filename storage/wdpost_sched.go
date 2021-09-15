@@ -139,7 +139,7 @@ func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)
 	for {
 		i++
 		ctx, _ := context.WithTimeout(context.Background(), 3 * time.Second)
-		reply, err := activeWdPoster.Client.Ping(ctx, nil)
+		reply, err := activeWdPoster.Client.Ping(ctx, &distribute_prover.PingRequest{})
 		if err != nil || reply == nil || reply.Msg != "ok" {
 			log.Warnf("[yunjie]: WindowPoStScheduler ping wdPoster %s failed. reply: %s, err: %v", activeWdPoster.Url, reply, err)
 			if i == count {
