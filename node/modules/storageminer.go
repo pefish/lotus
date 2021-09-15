@@ -252,7 +252,7 @@ func StorageMiner(fc config.MinerFeeConfig, wdPostConfig config.WdPostConfig) fu
 
 		lc.Append(fx.Hook{
 			OnStart: func(context.Context) error {
-				go fps.Run(ctx)
+				go fps.Run(ctx, wdPostConfig)
 				return sm.Run(ctx)
 			},
 			OnStop: sm.Stop,

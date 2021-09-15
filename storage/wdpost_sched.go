@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	distribute_prover "github.com/filecoin-project/lotus/proto/distribute-prover"
+	"google.golang.org/grpc"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -47,6 +49,13 @@ type WindowPoStScheduler struct {
 
 	// failed abi.ChainEpoch // eps
 	// failLk sync.Mutex
+
+	activeWdPosters []ActiveWdPosterData
+}
+
+type ActiveWdPosterData struct{
+	Conn *grpc.ClientConn
+	Client distribute_prover.DistributeProverClient
 }
 
 // NewWindowedPoStScheduler creates a new WindowPoStScheduler scheduler.
@@ -81,10 +90,45 @@ func NewWindowedPoStScheduler(api fullNodeFilteredAPI,
 			evtTypeWdPoStFaults:     j.RegisterEventType("wdpost", "faults_processed"),
 		},
 		journal: j,
+		activeWdPosters: make([]ActiveWdPosterData, 0),
 	}, nil
 }
 
-func (s *WindowPoStScheduler) Run(ctx context.Context) {
+func (s *WindowPoStScheduler) connectWdPosters(wdPostServers []string)  {
+	for _, wdPostServerUrl := range wdPostServers {
+		s.connectOneWdPosters(wdPostServerUrl)
+	}
+}
+
+func (s *WindowPoStScheduler) connectOneWdPosters(wdPostServerUrl string)  {
+	log.Infof("[yunjie]: WindowPoStScheduler connecting wdPoster %s", wdPostServerUrl)
+	dialCtx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+	var conn *grpc.ClientConn
+	count := 3  // 重试次数
+	i := 0
+	for {
+		i++
+		conn_, err := grpc.DialContext(dialCtx, wdPostServerUrl, grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			log.Warnf("[yunjie]: WindowPoStScheduler connect wdPoster %s failed. err: %v", wdPostServerUrl, err)
+			if i == count {
+				return
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		conn = conn_
+		break
+	}
+	client := distribute_prover.NewDistributeProverClient(conn)
+	s.activeWdPosters = append(s.activeWdPosters, ActiveWdPosterData{
+		Conn:   conn,
+		Client: client,
+	})
+	log.Infof("[yunjie]: WindowPoStScheduler connected wdPoster %s", wdPostServerUrl)
+}
+
+func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPostConfig) {
 	// Initialize change handler.
 
 	// callbacks is a union of the fullNodeFilteredAPI and ourselves.
@@ -102,6 +146,12 @@ func (s *WindowPoStScheduler) Run(ctx context.Context) {
 		err    error
 		gotCur bool
 	)
+
+	// 如果是分布式 wdposter ，则连接 wdposters
+	if len(wdPostConfig.WdPostServers) > 0 {
+		s.connectWdPosters(wdPostConfig.WdPostServers)
+	}
+	log.Infof("[yunjie] WindowPoStScheduler connected %d wdPosters", len(s.activeWdPosters))
 
 	// not fine to panic after this point
 	for {
