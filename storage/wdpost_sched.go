@@ -159,7 +159,7 @@ func (s *WindowPoStScheduler) heartbeatWdPosters()  {
 	for {
 		// 连接失败的反复尝试
 		s.failedWdPosters.Range(func(key, value interface{}) bool {
-			s.connectOneWdPoster(value.(string))
+			s.connectOneWdPoster(key.(string))
 			return true
 		})
 		// 连接成功的反复 ping
