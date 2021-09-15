@@ -4,6 +4,7 @@ import (
 	"context"
 	distribute_prover "github.com/filecoin-project/lotus/proto/distribute-prover"
 	"google.golang.org/grpc"
+	"sync"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -51,11 +52,15 @@ type WindowPoStScheduler struct {
 	// failLk sync.Mutex
 
 	activeWdPosters []ActiveWdPosterData
+	activeWdPostersLock sync.RWMutex
+	failedWdPosters []string
+	failedWdPostersLock sync.RWMutex
 }
 
 type ActiveWdPosterData struct{
 	Conn *grpc.ClientConn
 	Client distribute_prover.DistributeProverClient
+	Url string
 }
 
 // NewWindowedPoStScheduler creates a new WindowPoStScheduler scheduler.
@@ -91,16 +96,17 @@ func NewWindowedPoStScheduler(api fullNodeFilteredAPI,
 		},
 		journal: j,
 		activeWdPosters: make([]ActiveWdPosterData, 0),
+		failedWdPosters: make([]string, 0),
 	}, nil
 }
 
 func (s *WindowPoStScheduler) connectWdPosters(wdPostServers []string)  {
 	for _, wdPostServerUrl := range wdPostServers {
-		s.connectOneWdPosters(wdPostServerUrl)
+		s.connectOneWdPoster(wdPostServerUrl)
 	}
 }
 
-func (s *WindowPoStScheduler) connectOneWdPosters(wdPostServerUrl string)  {
+func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 	log.Infof("[yunjie]: WindowPoStScheduler connecting wdPoster %s", wdPostServerUrl)
 	dialCtx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 	var conn *grpc.ClientConn
@@ -112,6 +118,9 @@ func (s *WindowPoStScheduler) connectOneWdPosters(wdPostServerUrl string)  {
 		if err != nil {
 			log.Warnf("[yunjie]: WindowPoStScheduler connect wdPoster %s failed. err: %v", wdPostServerUrl, err)
 			if i == count {
+				s.failedWdPostersLock.Lock()
+				s.failedWdPosters = append(s.failedWdPosters, wdPostServerUrl)
+				s.failedWdPostersLock.Unlock()
 				return
 			}
 			time.Sleep(2 * time.Second)
@@ -121,11 +130,58 @@ func (s *WindowPoStScheduler) connectOneWdPosters(wdPostServerUrl string)  {
 		break
 	}
 	client := distribute_prover.NewDistributeProverClient(conn)
+	s.activeWdPostersLock.Lock()
 	s.activeWdPosters = append(s.activeWdPosters, ActiveWdPosterData{
 		Conn:   conn,
 		Client: client,
+		Url: wdPostServerUrl,
 	})
+	s.activeWdPostersLock.Unlock()
 	log.Infof("[yunjie]: WindowPoStScheduler connected wdPoster %s", wdPostServerUrl)
+}
+
+func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)  {
+	log.Infof("[yunjie]: WindowPoStScheduler pinging wdPoster %s", activeWdPoster.Url)
+	count := 3  // 重试次数
+	i := 0
+	for {
+		i++
+		ctx, _ := context.WithTimeout(context.Background(), 3 * time.Second)
+		reply, err := activeWdPoster.Client.Ping(ctx, nil)
+		if err != nil || reply.Msg != "ok" {
+			log.Warnf("[yunjie]: WindowPoStScheduler ping wdPoster %s failed. reply: %s, err: %v", activeWdPoster.Url, reply.Msg, err)
+			if i == count {
+				activeWdPoster.Conn.Close()
+				s.failedWdPostersLock.Lock()
+				s.failedWdPosters = append(s.failedWdPosters, activeWdPoster.Url)
+				s.failedWdPostersLock.Unlock()
+				return
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		break
+	}
+	log.Infof("[yunjie]: WindowPoStScheduler ping wdPoster %s succeed", activeWdPoster.Url)
+}
+
+func (s *WindowPoStScheduler) heartbeatWdPosters()  {
+	for {
+		// 连接失败的反复尝试
+		s.failedWdPostersLock.RLock()
+		for _, failedWdPosterUrl := range s.failedWdPosters {
+			s.connectOneWdPoster(failedWdPosterUrl)
+		}
+		s.failedWdPostersLock.RUnlock()
+		// 连接成功的反复 ping
+		s.activeWdPostersLock.RLock()
+		for _, activeWdPoster := range s.activeWdPosters {
+			s.pingOneWdPoster(activeWdPoster)
+		}
+		s.activeWdPostersLock.RUnlock()
+
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPostConfig) {
@@ -151,7 +207,11 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 	if len(wdPostConfig.WdPostServers) > 0 {
 		s.connectWdPosters(wdPostConfig.WdPostServers)
 	}
+	s.activeWdPostersLock.RLock()
 	log.Infof("[yunjie] WindowPoStScheduler connected %d wdPosters", len(s.activeWdPosters))
+	s.activeWdPostersLock.RUnlock()
+	// 协程开启心跳
+	go s.heartbeatWdPosters()
 
 	// not fine to panic after this point
 	for {

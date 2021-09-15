@@ -8,6 +8,18 @@ service DistributeProver {
   rpc GenerateWindowPoSt (GenerateWindowPoStRequest) returns (GenerateWindowPoStReply) {
 
   }
+
+  rpc Ping (PingRequest) returns (PingReply) {
+
+  }
+}
+
+message PingRequest {
+
+}
+
+message PingReply {
+  string msg = 1;
 }
 
 message GenerateWindowPoStRequest {

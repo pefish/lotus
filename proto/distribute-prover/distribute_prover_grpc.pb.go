@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DistributeProverClient interface {
 	GenerateWindowPoSt(ctx context.Context, in *GenerateWindowPoStRequest, opts ...grpc.CallOption) (*GenerateWindowPoStReply, error)
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error)
 }
 
 type distributeProverClient struct {
@@ -38,11 +39,21 @@ func (c *distributeProverClient) GenerateWindowPoSt(ctx context.Context, in *Gen
 	return out, nil
 }
 
+func (c *distributeProverClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error) {
+	out := new(PingReply)
+	err := c.cc.Invoke(ctx, "/distribute_prover.DistributeProver/Ping", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DistributeProverServer is the server API for DistributeProver service.
 // All implementations should embed UnimplementedDistributeProverServer
 // for forward compatibility
 type DistributeProverServer interface {
 	GenerateWindowPoSt(context.Context, *GenerateWindowPoStRequest) (*GenerateWindowPoStReply, error)
+	Ping(context.Context, *PingRequest) (*PingReply, error)
 }
 
 // UnimplementedDistributeProverServer should be embedded to have forward compatible implementations.
@@ -51,6 +62,9 @@ type UnimplementedDistributeProverServer struct {
 
 func (UnimplementedDistributeProverServer) GenerateWindowPoSt(context.Context, *GenerateWindowPoStRequest) (*GenerateWindowPoStReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateWindowPoSt not implemented")
+}
+func (UnimplementedDistributeProverServer) Ping(context.Context, *PingRequest) (*PingReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
 
 // UnsafeDistributeProverServer may be embedded to opt out of forward compatibility for this service.
@@ -82,6 +96,24 @@ func _DistributeProver_GenerateWindowPoSt_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DistributeProver_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DistributeProverServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/distribute_prover.DistributeProver/Ping",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DistributeProverServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DistributeProver_ServiceDesc is the grpc.ServiceDesc for DistributeProver service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -92,6 +124,10 @@ var DistributeProver_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateWindowPoSt",
 			Handler:    _DistributeProver_GenerateWindowPoSt_Handler,
+		},
+		{
+			MethodName: "Ping",
+			Handler:    _DistributeProver_Ping_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
