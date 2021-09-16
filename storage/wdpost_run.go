@@ -488,6 +488,14 @@ func (s *WindowPoStScheduler) remoteGenerateWindowPoSt(ctx context.Context, part
 		Sinfos:     sinfosBytes,
 		Randomness: randomnessBytes,
 	})
+	if err != nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt err - %v", err)
+		return true, nil, nil, nil
+	}
+	if reply == nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt err - reply is nil")
+		return true, nil, nil, nil
+	}
 	proofs := make([]proof.PoStProof, 0)
 	err = json.Unmarshal(reply.Proof, &proofs)
 	if err != nil {
