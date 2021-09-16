@@ -51,8 +51,9 @@ type WindowPoStScheduler struct {
 	// failed abi.ChainEpoch // eps
 	// failLk sync.Mutex
 
-	activeWdPosters sync.Map
-	failedWdPosters sync.Map
+	activeWdPosters sync.Map  // wdPoster url -> ActiveWdPosterData
+	failedWdPosters sync.Map  // wdPoster url -> true/false
+	partitionWdPoster sync.Map  // partition index -> wdPoster url
 }
 
 type ActiveWdPosterData struct{

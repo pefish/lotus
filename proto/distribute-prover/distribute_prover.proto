@@ -24,28 +24,12 @@ message PingReply {
 
 message GenerateWindowPoStRequest {
   uint64 actorId = 1;
-  message SectorInfo {
-    int64 sealProof = 1;
-    uint64 sectorNumber = 2;
-    message Cid {
-      string str = 1;
-    }
-    Cid sealedCID = 3;
-  }
-  repeated SectorInfo sinfos = 2;
-  repeated bytes randomness = 3;
+  bytes sinfos = 2;
+  bytes randomness = 3;
 }
 
 message GenerateWindowPoStReply {
-  message PoStProof {
-    int64 poStProof = 1;
-    bytes proofBytes = 2;
-  }
-  repeated PoStProof proof = 1;
-  message SectorID {
-    uint64 miner = 1;
-    uint64 number = 2;
-  }
-  repeated SectorID skipped = 2;
+  bytes proof = 1;
+  bytes skipped = 2;
 }
 

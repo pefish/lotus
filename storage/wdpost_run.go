@@ -3,6 +3,8 @@ package storage
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	distribute_prover "github.com/filecoin-project/lotus/proto/distribute-prover"
 	"sync"
 	"time"
 
@@ -442,6 +444,65 @@ func (s *WindowPoStScheduler) declareFaults(ctx context.Context, dlIdx uint64, p
 	return faults, sm, nil
 }
 
+func (s *WindowPoStScheduler) assignPartitions(partitions []api.Partition) {
+	wdPosterUrls := make([]string, 0)
+	s.activeWdPosters.Range(func(key, value interface{}) bool {
+		wdPosterUrls = append(wdPosterUrls, key.(string))
+		return true
+	})
+	if len(wdPosterUrls) > 0 {
+		index := 0
+		for partitionIndex, _ := range partitions {
+			s.partitionWdPoster.Store(partitionIndex, wdPosterUrls[index])
+			index++
+			if index == len(wdPosterUrls) {
+				index = 0
+			}
+		}
+	}
+
+}
+
+func (s *WindowPoStScheduler) remoteGenerateWindowPoSt(ctx context.Context, partitionsIdx int, minerID abi.ActorID, sectorInfo []proof.SectorInfo, randomness abi.PoStRandomness) (bool, []proof.PoStProof, []abi.SectorID, error) {
+	wdPosterUrl, ok := s.partitionWdPoster.Load(partitionsIdx)
+	if !ok {  // 如果还是没有，说明没有 wdPoster
+		return true, nil, nil, nil
+	}
+	// 分区已经安排，但是 wdPoster 挂了怎么办？自己处理这个分区
+	wdPoster, ok := s.activeWdPosters.Load(wdPosterUrl)
+	if !ok {
+		return true, nil, nil, nil
+	}
+	sinfosBytes, err := json.Marshal(sectorInfo)
+	if err != nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt marshal sectorInfo err - %v", err)
+		return true, nil, nil, nil
+	}
+	randomnessBytes, err := json.Marshal(randomness)
+	if err != nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt marshal randomness err - %v", err)
+		return true, nil, nil, nil
+	}
+	reply, err := wdPoster.(ActiveWdPosterData).Client.GenerateWindowPoSt(ctx, &distribute_prover.GenerateWindowPoStRequest{
+		ActorId:    uint64(minerID),
+		Sinfos:     sinfosBytes,
+		Randomness: randomnessBytes,
+	})
+	proofs := make([]proof.PoStProof, 0)
+	err = json.Unmarshal(reply.Proof, &proofs)
+	if err != nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt unmarshal reply.Proof err - %v", err)
+		return true, nil, nil, nil
+	}
+	skippeds := make([]abi.SectorID, 0)
+	err = json.Unmarshal(reply.Skipped, &skippeds)
+	if err != nil {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt unmarshal reply.Skipped err - %v", err)
+		return true, nil, nil, nil
+	}
+	return false, proofs, skippeds, nil
+}
+
 // runPoStCycle runs a full cycle of the PoSt process:
 //
 //  1. performs recovery declarations for the next deadline.
@@ -629,15 +690,20 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 					return
 				}
 
-				//prover, err := ffiwrapper.New(&readonlyProvider{stor: lstor, index: si})
-				//if err != nil {
-				//	return nil, xerrors.Errorf("creating prover instance: %w", err)
-				//}
+				var postOut []proof.PoStProof
+				var ps []abi.SectorID
 
-				// 网络请求分布式 pdpost 服务端
-				//var prover ffiwrapper.DistributeProver
-				//postOut, ps, err := prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...)) // 给这一批分区中所有的扇区生成时空证明
-				postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, append(abi.PoStRandomness{}, rand...)) // 给这一批分区中所有的扇区生成时空证明
+				if _, ok := s.partitionWdPoster.Load(partitionsIdx); !ok {  // 没有分配过，则分配一下
+					s.assignPartitions(partitions)
+				}
+				randoms := append(abi.PoStRandomness{}, rand...)
+				var processBySelf bool
+				processBySelf, postOut, ps, err = s.remoteGenerateWindowPoSt(ctx, partitionsIdx, abi.ActorID(mid), sinfos, randoms)
+
+				if processBySelf {
+					postOut, ps, err = s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, randoms) // 给这一分区中所有的扇区生成时空证明
+				}
+
 				elapsed := time.Since(tsStart)
 
 				log.Infow("computing window post", "partition", partitionsIdx, "elapsed", elapsed)

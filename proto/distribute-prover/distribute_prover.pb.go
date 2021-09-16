@@ -110,9 +110,9 @@ type GenerateWindowPoStRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ActorId    uint64                                  `protobuf:"varint,1,opt,name=actorId,proto3" json:"actorId,omitempty"`
-	Sinfos     []*GenerateWindowPoStRequest_SectorInfo `protobuf:"bytes,2,rep,name=sinfos,proto3" json:"sinfos,omitempty"`
-	Randomness [][]byte                                `protobuf:"bytes,3,rep,name=randomness,proto3" json:"randomness,omitempty"`
+	ActorId    uint64 `protobuf:"varint,1,opt,name=actorId,proto3" json:"actorId,omitempty"`
+	Sinfos     []byte `protobuf:"bytes,2,opt,name=sinfos,proto3" json:"sinfos,omitempty"`
+	Randomness []byte `protobuf:"bytes,3,opt,name=randomness,proto3" json:"randomness,omitempty"`
 }
 
 func (x *GenerateWindowPoStRequest) Reset() {
@@ -154,14 +154,14 @@ func (x *GenerateWindowPoStRequest) GetActorId() uint64 {
 	return 0
 }
 
-func (x *GenerateWindowPoStRequest) GetSinfos() []*GenerateWindowPoStRequest_SectorInfo {
+func (x *GenerateWindowPoStRequest) GetSinfos() []byte {
 	if x != nil {
 		return x.Sinfos
 	}
 	return nil
 }
 
-func (x *GenerateWindowPoStRequest) GetRandomness() [][]byte {
+func (x *GenerateWindowPoStRequest) GetRandomness() []byte {
 	if x != nil {
 		return x.Randomness
 	}
@@ -173,8 +173,8 @@ type GenerateWindowPoStReply struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Proof   []*GenerateWindowPoStReply_PoStProof `protobuf:"bytes,1,rep,name=proof,proto3" json:"proof,omitempty"`
-	Skipped []*GenerateWindowPoStReply_SectorID  `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	Proof   []byte `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
+	Skipped []byte `protobuf:"bytes,2,opt,name=skipped,proto3" json:"skipped,omitempty"`
 }
 
 func (x *GenerateWindowPoStReply) Reset() {
@@ -209,238 +209,18 @@ func (*GenerateWindowPoStReply) Descriptor() ([]byte, []int) {
 	return file_distribute_prover_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GenerateWindowPoStReply) GetProof() []*GenerateWindowPoStReply_PoStProof {
+func (x *GenerateWindowPoStReply) GetProof() []byte {
 	if x != nil {
 		return x.Proof
 	}
 	return nil
 }
 
-func (x *GenerateWindowPoStReply) GetSkipped() []*GenerateWindowPoStReply_SectorID {
+func (x *GenerateWindowPoStReply) GetSkipped() []byte {
 	if x != nil {
 		return x.Skipped
 	}
 	return nil
-}
-
-type GenerateWindowPoStRequest_SectorInfo struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	SealProof    int64                                     `protobuf:"varint,1,opt,name=sealProof,proto3" json:"sealProof,omitempty"`
-	SectorNumber uint64                                    `protobuf:"varint,2,opt,name=sectorNumber,proto3" json:"sectorNumber,omitempty"`
-	SealedCID    *GenerateWindowPoStRequest_SectorInfo_Cid `protobuf:"bytes,3,opt,name=sealedCID,proto3" json:"sealedCID,omitempty"`
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) Reset() {
-	*x = GenerateWindowPoStRequest_SectorInfo{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_distribute_prover_proto_msgTypes[4]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateWindowPoStRequest_SectorInfo) ProtoMessage() {}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_distribute_prover_proto_msgTypes[4]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateWindowPoStRequest_SectorInfo.ProtoReflect.Descriptor instead.
-func (*GenerateWindowPoStRequest_SectorInfo) Descriptor() ([]byte, []int) {
-	return file_distribute_prover_proto_rawDescGZIP(), []int{2, 0}
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) GetSealProof() int64 {
-	if x != nil {
-		return x.SealProof
-	}
-	return 0
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) GetSectorNumber() uint64 {
-	if x != nil {
-		return x.SectorNumber
-	}
-	return 0
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo) GetSealedCID() *GenerateWindowPoStRequest_SectorInfo_Cid {
-	if x != nil {
-		return x.SealedCID
-	}
-	return nil
-}
-
-type GenerateWindowPoStRequest_SectorInfo_Cid struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Str string `protobuf:"bytes,1,opt,name=str,proto3" json:"str,omitempty"`
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo_Cid) Reset() {
-	*x = GenerateWindowPoStRequest_SectorInfo_Cid{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_distribute_prover_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo_Cid) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateWindowPoStRequest_SectorInfo_Cid) ProtoMessage() {}
-
-func (x *GenerateWindowPoStRequest_SectorInfo_Cid) ProtoReflect() protoreflect.Message {
-	mi := &file_distribute_prover_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateWindowPoStRequest_SectorInfo_Cid.ProtoReflect.Descriptor instead.
-func (*GenerateWindowPoStRequest_SectorInfo_Cid) Descriptor() ([]byte, []int) {
-	return file_distribute_prover_proto_rawDescGZIP(), []int{2, 0, 0}
-}
-
-func (x *GenerateWindowPoStRequest_SectorInfo_Cid) GetStr() string {
-	if x != nil {
-		return x.Str
-	}
-	return ""
-}
-
-type GenerateWindowPoStReply_PoStProof struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	PoStProof  int64  `protobuf:"varint,1,opt,name=poStProof,proto3" json:"poStProof,omitempty"`
-	ProofBytes []byte `protobuf:"bytes,2,opt,name=proofBytes,proto3" json:"proofBytes,omitempty"`
-}
-
-func (x *GenerateWindowPoStReply_PoStProof) Reset() {
-	*x = GenerateWindowPoStReply_PoStProof{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_distribute_prover_proto_msgTypes[6]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateWindowPoStReply_PoStProof) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateWindowPoStReply_PoStProof) ProtoMessage() {}
-
-func (x *GenerateWindowPoStReply_PoStProof) ProtoReflect() protoreflect.Message {
-	mi := &file_distribute_prover_proto_msgTypes[6]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateWindowPoStReply_PoStProof.ProtoReflect.Descriptor instead.
-func (*GenerateWindowPoStReply_PoStProof) Descriptor() ([]byte, []int) {
-	return file_distribute_prover_proto_rawDescGZIP(), []int{3, 0}
-}
-
-func (x *GenerateWindowPoStReply_PoStProof) GetPoStProof() int64 {
-	if x != nil {
-		return x.PoStProof
-	}
-	return 0
-}
-
-func (x *GenerateWindowPoStReply_PoStProof) GetProofBytes() []byte {
-	if x != nil {
-		return x.ProofBytes
-	}
-	return nil
-}
-
-type GenerateWindowPoStReply_SectorID struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Miner  uint64 `protobuf:"varint,1,opt,name=miner,proto3" json:"miner,omitempty"`
-	Number uint64 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
-}
-
-func (x *GenerateWindowPoStReply_SectorID) Reset() {
-	*x = GenerateWindowPoStReply_SectorID{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_distribute_prover_proto_msgTypes[7]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateWindowPoStReply_SectorID) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateWindowPoStReply_SectorID) ProtoMessage() {}
-
-func (x *GenerateWindowPoStReply_SectorID) ProtoReflect() protoreflect.Message {
-	mi := &file_distribute_prover_proto_msgTypes[7]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateWindowPoStReply_SectorID.ProtoReflect.Descriptor instead.
-func (*GenerateWindowPoStReply_SectorID) Descriptor() ([]byte, []int) {
-	return file_distribute_prover_proto_rawDescGZIP(), []int{3, 1}
-}
-
-func (x *GenerateWindowPoStReply_SectorID) GetMiner() uint64 {
-	if x != nil {
-		return x.Miner
-	}
-	return 0
-}
-
-func (x *GenerateWindowPoStReply_SectorID) GetNumber() uint64 {
-	if x != nil {
-		return x.Number
-	}
-	return 0
 }
 
 var File_distribute_prover_proto protoreflect.FileDescriptor
@@ -451,50 +231,19 @@ var file_distribute_prover_proto_rawDesc = []byte{
 	0x69, 0x62, 0x75, 0x74, 0x65, 0x5f, 0x70, 0x72, 0x6f, 0x76, 0x65, 0x72, 0x22, 0x0d, 0x0a, 0x0b,
 	0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x1d, 0x0a, 0x09, 0x50,
 	0x69, 0x6e, 0x67, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6d, 0x73, 0x67, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6d, 0x73, 0x67, 0x22, 0xeb, 0x02, 0x0a, 0x19, 0x47,
-	0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53,
-	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x63, 0x74, 0x6f,
-	0x72, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x61, 0x63, 0x74, 0x6f, 0x72,
-	0x49, 0x64, 0x12, 0x4f, 0x0a, 0x06, 0x73, 0x69, 0x6e, 0x66, 0x6f, 0x73, 0x18, 0x02, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x37, 0x2e, 0x64, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x5f,
-	0x70, 0x72, 0x6f, 0x76, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x57,
-	0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x2e, 0x53, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x06, 0x73, 0x69, 0x6e,
-	0x66, 0x6f, 0x73, 0x12, 0x1e, 0x0a, 0x0a, 0x72, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x6e, 0x65, 0x73,
-	0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x0a, 0x72, 0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x6e,
-	0x65, 0x73, 0x73, 0x1a, 0xc2, 0x01, 0x0a, 0x0a, 0x53, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x49, 0x6e,
-	0x66, 0x6f, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x65, 0x61, 0x6c, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x09, 0x73, 0x65, 0x61, 0x6c, 0x50, 0x72, 0x6f, 0x6f, 0x66,
-	0x12, 0x22, 0x0a, 0x0c, 0x73, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0c, 0x73, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x4e, 0x75,
-	0x6d, 0x62, 0x65, 0x72, 0x12, 0x59, 0x0a, 0x09, 0x73, 0x65, 0x61, 0x6c, 0x65, 0x64, 0x43, 0x49,
-	0x44, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x3b, 0x2e, 0x64, 0x69, 0x73, 0x74, 0x72, 0x69,
-	0x62, 0x75, 0x74, 0x65, 0x5f, 0x70, 0x72, 0x6f, 0x76, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x6e, 0x65,
-	0x72, 0x61, 0x74, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x53, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x49, 0x6e, 0x66, 0x6f,
-	0x2e, 0x43, 0x69, 0x64, 0x52, 0x09, 0x73, 0x65, 0x61, 0x6c, 0x65, 0x64, 0x43, 0x49, 0x44, 0x1a,
-	0x17, 0x0a, 0x03, 0x43, 0x69, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x73, 0x74, 0x72, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x03, 0x73, 0x74, 0x72, 0x22, 0xb9, 0x02, 0x0a, 0x17, 0x47, 0x65, 0x6e,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6d, 0x73, 0x67, 0x22, 0x6d, 0x0a, 0x19, 0x47, 0x65,
+	0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x63, 0x74, 0x6f, 0x72,
+	0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x61, 0x63, 0x74, 0x6f, 0x72, 0x49,
+	0x64, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x69, 0x6e, 0x66, 0x6f, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x06, 0x73, 0x69, 0x6e, 0x66, 0x6f, 0x73, 0x12, 0x1e, 0x0a, 0x0a, 0x72, 0x61, 0x6e,
+	0x64, 0x6f, 0x6d, 0x6e, 0x65, 0x73, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x72,
+	0x61, 0x6e, 0x64, 0x6f, 0x6d, 0x6e, 0x65, 0x73, 0x73, 0x22, 0x49, 0x0a, 0x17, 0x47, 0x65, 0x6e,
 	0x65, 0x72, 0x61, 0x74, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x52,
-	0x65, 0x70, 0x6c, 0x79, 0x12, 0x4a, 0x0a, 0x05, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x18, 0x01, 0x20,
-	0x03, 0x28, 0x0b, 0x32, 0x34, 0x2e, 0x64, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65,
-	0x5f, 0x70, 0x72, 0x6f, 0x76, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65,
-	0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x2e,
-	0x50, 0x6f, 0x53, 0x74, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x52, 0x05, 0x70, 0x72, 0x6f, 0x6f, 0x66,
-	0x12, 0x4d, 0x0a, 0x07, 0x73, 0x6b, 0x69, 0x70, 0x70, 0x65, 0x64, 0x18, 0x02, 0x20, 0x03, 0x28,
-	0x0b, 0x32, 0x33, 0x2e, 0x64, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x5f, 0x70,
-	0x72, 0x6f, 0x76, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x57, 0x69,
-	0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x2e, 0x53, 0x65,
-	0x63, 0x74, 0x6f, 0x72, 0x49, 0x44, 0x52, 0x07, 0x73, 0x6b, 0x69, 0x70, 0x70, 0x65, 0x64, 0x1a,
-	0x49, 0x0a, 0x09, 0x50, 0x6f, 0x53, 0x74, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x1c, 0x0a, 0x09,
-	0x70, 0x6f, 0x53, 0x74, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52,
-	0x09, 0x70, 0x6f, 0x53, 0x74, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x1e, 0x0a, 0x0a, 0x70, 0x72,
-	0x6f, 0x6f, 0x66, 0x42, 0x79, 0x74, 0x65, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a,
-	0x70, 0x72, 0x6f, 0x6f, 0x66, 0x42, 0x79, 0x74, 0x65, 0x73, 0x1a, 0x38, 0x0a, 0x08, 0x53, 0x65,
-	0x63, 0x74, 0x6f, 0x72, 0x49, 0x44, 0x12, 0x14, 0x0a, 0x05, 0x6d, 0x69, 0x6e, 0x65, 0x72, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x6d, 0x69, 0x6e, 0x65, 0x72, 0x12, 0x16, 0x0a, 0x06,
-	0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x6e, 0x75,
-	0x6d, 0x62, 0x65, 0x72, 0x32, 0xcc, 0x01, 0x0a, 0x10, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62,
+	0x65, 0x70, 0x6c, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x05, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x6b,
+	0x69, 0x70, 0x70, 0x65, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x73, 0x6b, 0x69,
+	0x70, 0x70, 0x65, 0x64, 0x32, 0xcc, 0x01, 0x0a, 0x10, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62,
 	0x75, 0x74, 0x65, 0x50, 0x72, 0x6f, 0x76, 0x65, 0x72, 0x12, 0x70, 0x0a, 0x12, 0x47, 0x65, 0x6e,
 	0x65, 0x72, 0x61, 0x74, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x50, 0x6f, 0x53, 0x74, 0x12,
 	0x2c, 0x2e, 0x64, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x5f, 0x70, 0x72, 0x6f,
@@ -524,31 +273,23 @@ func file_distribute_prover_proto_rawDescGZIP() []byte {
 	return file_distribute_prover_proto_rawDescData
 }
 
-var file_distribute_prover_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_distribute_prover_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_distribute_prover_proto_goTypes = []interface{}{
-	(*PingRequest)(nil),                              // 0: distribute_prover.PingRequest
-	(*PingReply)(nil),                                // 1: distribute_prover.PingReply
-	(*GenerateWindowPoStRequest)(nil),                // 2: distribute_prover.GenerateWindowPoStRequest
-	(*GenerateWindowPoStReply)(nil),                  // 3: distribute_prover.GenerateWindowPoStReply
-	(*GenerateWindowPoStRequest_SectorInfo)(nil),     // 4: distribute_prover.GenerateWindowPoStRequest.SectorInfo
-	(*GenerateWindowPoStRequest_SectorInfo_Cid)(nil), // 5: distribute_prover.GenerateWindowPoStRequest.SectorInfo.Cid
-	(*GenerateWindowPoStReply_PoStProof)(nil),        // 6: distribute_prover.GenerateWindowPoStReply.PoStProof
-	(*GenerateWindowPoStReply_SectorID)(nil),         // 7: distribute_prover.GenerateWindowPoStReply.SectorID
+	(*PingRequest)(nil),               // 0: distribute_prover.PingRequest
+	(*PingReply)(nil),                 // 1: distribute_prover.PingReply
+	(*GenerateWindowPoStRequest)(nil), // 2: distribute_prover.GenerateWindowPoStRequest
+	(*GenerateWindowPoStReply)(nil),   // 3: distribute_prover.GenerateWindowPoStReply
 }
 var file_distribute_prover_proto_depIdxs = []int32{
-	4, // 0: distribute_prover.GenerateWindowPoStRequest.sinfos:type_name -> distribute_prover.GenerateWindowPoStRequest.SectorInfo
-	6, // 1: distribute_prover.GenerateWindowPoStReply.proof:type_name -> distribute_prover.GenerateWindowPoStReply.PoStProof
-	7, // 2: distribute_prover.GenerateWindowPoStReply.skipped:type_name -> distribute_prover.GenerateWindowPoStReply.SectorID
-	5, // 3: distribute_prover.GenerateWindowPoStRequest.SectorInfo.sealedCID:type_name -> distribute_prover.GenerateWindowPoStRequest.SectorInfo.Cid
-	2, // 4: distribute_prover.DistributeProver.GenerateWindowPoSt:input_type -> distribute_prover.GenerateWindowPoStRequest
-	0, // 5: distribute_prover.DistributeProver.Ping:input_type -> distribute_prover.PingRequest
-	3, // 6: distribute_prover.DistributeProver.GenerateWindowPoSt:output_type -> distribute_prover.GenerateWindowPoStReply
-	1, // 7: distribute_prover.DistributeProver.Ping:output_type -> distribute_prover.PingReply
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 0: distribute_prover.DistributeProver.GenerateWindowPoSt:input_type -> distribute_prover.GenerateWindowPoStRequest
+	0, // 1: distribute_prover.DistributeProver.Ping:input_type -> distribute_prover.PingRequest
+	3, // 2: distribute_prover.DistributeProver.GenerateWindowPoSt:output_type -> distribute_prover.GenerateWindowPoStReply
+	1, // 3: distribute_prover.DistributeProver.Ping:output_type -> distribute_prover.PingReply
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_distribute_prover_proto_init() }
@@ -605,54 +346,6 @@ func file_distribute_prover_proto_init() {
 				return nil
 			}
 		}
-		file_distribute_prover_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateWindowPoStRequest_SectorInfo); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_distribute_prover_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateWindowPoStRequest_SectorInfo_Cid); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_distribute_prover_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateWindowPoStReply_PoStProof); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_distribute_prover_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateWindowPoStReply_SectorID); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -660,7 +353,7 @@ func file_distribute_prover_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_distribute_prover_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

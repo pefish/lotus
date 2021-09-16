@@ -244,6 +244,7 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	curr := p.current
 	p.current.abort = p.api.startGeneratePoST(ctx, newTS, di, func(posts []miner.SubmitWindowedPoStParams, err error) {
 		p.postResults <- &postResult{ts: newTS, currPost: curr, posts: posts, err: err}
+		// 这个窗口处理完成，进行下一个窗口的 partition 分配 TODO
 	})
 }
 
