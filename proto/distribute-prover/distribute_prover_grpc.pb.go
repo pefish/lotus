@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DistributeProverClient interface {
 	GenerateWindowPoSt(ctx context.Context, in *GenerateWindowPoStRequest, opts ...grpc.CallOption) (*GenerateWindowPoStReply, error)
+	GetGenerateWindowPoStResult(ctx context.Context, in *GetGenerateWindowPoStResultRequest, opts ...grpc.CallOption) (*GetGenerateWindowPoStResultReply, error)
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error)
 }
 
@@ -39,6 +40,15 @@ func (c *distributeProverClient) GenerateWindowPoSt(ctx context.Context, in *Gen
 	return out, nil
 }
 
+func (c *distributeProverClient) GetGenerateWindowPoStResult(ctx context.Context, in *GetGenerateWindowPoStResultRequest, opts ...grpc.CallOption) (*GetGenerateWindowPoStResultReply, error) {
+	out := new(GetGenerateWindowPoStResultReply)
+	err := c.cc.Invoke(ctx, "/distribute_prover.DistributeProver/GetGenerateWindowPoStResult", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *distributeProverClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error) {
 	out := new(PingReply)
 	err := c.cc.Invoke(ctx, "/distribute_prover.DistributeProver/Ping", in, out, opts...)
@@ -53,6 +63,7 @@ func (c *distributeProverClient) Ping(ctx context.Context, in *PingRequest, opts
 // for forward compatibility
 type DistributeProverServer interface {
 	GenerateWindowPoSt(context.Context, *GenerateWindowPoStRequest) (*GenerateWindowPoStReply, error)
+	GetGenerateWindowPoStResult(context.Context, *GetGenerateWindowPoStResultRequest) (*GetGenerateWindowPoStResultReply, error)
 	Ping(context.Context, *PingRequest) (*PingReply, error)
 }
 
@@ -62,6 +73,9 @@ type UnimplementedDistributeProverServer struct {
 
 func (UnimplementedDistributeProverServer) GenerateWindowPoSt(context.Context, *GenerateWindowPoStRequest) (*GenerateWindowPoStReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateWindowPoSt not implemented")
+}
+func (UnimplementedDistributeProverServer) GetGenerateWindowPoStResult(context.Context, *GetGenerateWindowPoStResultRequest) (*GetGenerateWindowPoStResultReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGenerateWindowPoStResult not implemented")
 }
 func (UnimplementedDistributeProverServer) Ping(context.Context, *PingRequest) (*PingReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
@@ -96,6 +110,24 @@ func _DistributeProver_GenerateWindowPoSt_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DistributeProver_GetGenerateWindowPoStResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGenerateWindowPoStResultRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DistributeProverServer).GetGenerateWindowPoStResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/distribute_prover.DistributeProver/GetGenerateWindowPoStResult",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DistributeProverServer).GetGenerateWindowPoStResult(ctx, req.(*GetGenerateWindowPoStResultRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DistributeProver_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PingRequest)
 	if err := dec(in); err != nil {
@@ -124,6 +156,10 @@ var DistributeProver_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateWindowPoSt",
 			Handler:    _DistributeProver_GenerateWindowPoSt_Handler,
+		},
+		{
+			MethodName: "GetGenerateWindowPoStResult",
+			Handler:    _DistributeProver_GetGenerateWindowPoStResult_Handler,
 		},
 		{
 			MethodName: "Ping",

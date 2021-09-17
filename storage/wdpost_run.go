@@ -483,10 +483,12 @@ func (s *WindowPoStScheduler) remoteGenerateWindowPoSt(ctx context.Context, part
 		log.Errorf("[yunjie]: remoteGenerateWindowPoSt marshal randomness err - %v", err)
 		return true, nil, nil, nil
 	}
-	reply, err := wdPoster.(ActiveWdPosterData).Client.GenerateWindowPoSt(ctx, &distribute_prover.GenerateWindowPoStRequest{
+	client := wdPoster.(ActiveWdPosterData).Client
+	reply, err := client.GenerateWindowPoSt(ctx, &distribute_prover.GenerateWindowPoStRequest{
 		ActorId:    uint64(minerID),
 		Sinfos:     sinfosBytes,
 		Randomness: randomnessBytes,
+		PartitionIndex: uint64(partitionsIdx),
 	})
 	if err != nil {
 		log.Errorf("[yunjie]: remoteGenerateWindowPoSt err - %v", err)
@@ -496,14 +498,35 @@ func (s *WindowPoStScheduler) remoteGenerateWindowPoSt(ctx context.Context, part
 		log.Errorf("[yunjie]: remoteGenerateWindowPoSt err - reply is nil")
 		return true, nil, nil, nil
 	}
+	if reply.Msg != "ok" {
+		log.Errorf("[yunjie]: remoteGenerateWindowPoSt err - reply.msg is not ok")
+		return true, nil, nil, nil
+	}
+	// 反复等待结果
+	var generateWindowPoStResult *distribute_prover.GetGenerateWindowPoStResultReply
+	for {
+		result, err := client.GetGenerateWindowPoStResult(ctx, &distribute_prover.GetGenerateWindowPoStResultRequest{PartitionIndex: uint64(partitionsIdx)})
+		if err != nil {
+			log.Errorf("[yunjie]: remoteGenerateWindowPoSt GetGenerateWindowPoStResult err - %v", err)
+			return true, nil, nil, nil
+		}
+		if !result.Finished {
+			log.Infof("[yunjie]: remoteGenerateWindowPoSt not yet finished. retry...")
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		generateWindowPoStResult = result
+		break
+	}
+
 	proofs := make([]proof.PoStProof, 0)
-	err = json.Unmarshal(reply.Proof, &proofs)
+	err = json.Unmarshal(generateWindowPoStResult.Proof, &proofs)
 	if err != nil {
 		log.Errorf("[yunjie]: remoteGenerateWindowPoSt unmarshal reply.Proof err - %v", err)
 		return true, nil, nil, nil
 	}
 	skippeds := make([]abi.SectorID, 0)
-	err = json.Unmarshal(reply.Skipped, &skippeds)
+	err = json.Unmarshal(generateWindowPoStResult.Skipped, &skippeds)
 	if err != nil {
 		log.Errorf("[yunjie]: remoteGenerateWindowPoSt unmarshal reply.Skipped err - %v", err)
 		return true, nil, nil, nil

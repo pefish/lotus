@@ -9,6 +9,10 @@ service DistributeProver {
 
   }
 
+  rpc GetGenerateWindowPoStResult (GetGenerateWindowPoStResultRequest) returns (GetGenerateWindowPoStResultReply) {
+
+  }
+
   rpc Ping (PingRequest) returns (PingReply) {
 
   }
@@ -22,14 +26,24 @@ message PingReply {
   string msg = 1;
 }
 
+message GenerateWindowPoStReply {
+  string msg = 1;
+}
+
 message GenerateWindowPoStRequest {
   uint64 actorId = 1;
   bytes sinfos = 2;
   bytes randomness = 3;
+  uint64 partitionIndex = 4;
 }
 
-message GenerateWindowPoStReply {
+message GetGenerateWindowPoStResultRequest {
+  uint64 partitionIndex = 1;
+}
+
+message GetGenerateWindowPoStResultReply {
   bytes proof = 1;
   bytes skipped = 2;
+  bool finished = 3;
 }
 
