@@ -24,7 +24,7 @@ service DistributeProver {
 
 message CacheSectorsRequest {
   uint64 actorId = 1;
-  repeated string sectorIds = 2;
+  repeated uint64 sectorIds = 2;
 }
 
 message CacheSectorsReply {

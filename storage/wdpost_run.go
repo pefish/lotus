@@ -109,10 +109,10 @@ func (s *WindowPoStScheduler) startGeneratePoST( // 生成 windowPost 证明
 				log.Errorf("sectorsForProof error: %v", err)
 				return
 			}
-			sectorIds := make([]string, 0)
+			sectorIds := make([]uint64, 0)
 			for _, s := range ssi {
 				log.Warnf("[yunjie]: SectorNumber: %s", s.SectorNumber.String())
-				sectorIds = append(sectorIds, s.SectorNumber.String())
+				sectorIds = append(sectorIds, uint64(s.SectorNumber))
 			}
 			wdPosterUrl, ok := s.partitionWdPoster.Load(partitionIndex)
 			if !ok {  // 如果还是没有，说明没有 wdPoster
