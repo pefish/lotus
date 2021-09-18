@@ -134,7 +134,7 @@ func (s *WindowPoStScheduler) startGeneratePoST( // 生成 windowPost 证明
 				return
 			}
 			if reply == nil || reply.Msg != "ok" {
-				log.Errorf("CacheSectors reply error: %v", err)
+				log.Errorf("CacheSectors reply error: %v", reply)
 				return
 			}
 
