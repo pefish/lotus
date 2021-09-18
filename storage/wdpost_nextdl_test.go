@@ -22,7 +22,7 @@ func TestNextDeadline(t *testing.T) {
 	require.EqualValues(t, 60, di.Close)
 
 	for i := 1; i < 1+int(miner.WPoStPeriodDeadlines)*2; i++ {
-		di = nextDeadline(di)
+		di = NextDeadline(di)
 		deadlineIdx = i % int(miner.WPoStPeriodDeadlines)
 		expPeriodStart := int(miner.WPoStProvingPeriod) * (i / int(miner.WPoStPeriodDeadlines))
 		expOpen := expPeriodStart + deadlineIdx*int(miner.WPoStChallengeWindow)

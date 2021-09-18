@@ -89,6 +89,22 @@ func (s *WindowPoStScheduler) startGeneratePoST( // 生成 windowPost 证明
 
 		posts, err := s.runGeneratePoST(ctx, ts, deadline)
 		completeGeneratePoST(posts, err)
+		// 这个窗口处理完成，进行下一个窗口的 partition 分配
+		partitions, err := s.api.StateMinerPartitions(ctx, s.actor, NextDeadline(deadline).Index, ts.Key()) // 拿到这个节点的下一个窗口中的所有分区（链上分配的）
+		if err != nil {
+			log.Errorf("getting next partitions error: %v", err)
+			return
+		}
+		for _, partition := range partitions {
+			ssi, err := s.sectorsForProof(ctx, partition.AllSectors, partition.AllSectors, ts)
+			if err != nil {
+				log.Errorf("sectorsForProof error: %v", err)
+				return
+			}
+			for _, s := range ssi {
+				log.Warnf("[yunjie]: SectorNumber: %s", s.SectorNumber.String())
+			}
+		}
 	}()
 
 	return abort

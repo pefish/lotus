@@ -212,7 +212,7 @@ func (p *proveHandler) run() {
 
 func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSet, di *dline.Info) {  // 高度变化都会调用这里
 	// If the post window has expired, abort the current proof
-	if p.current != nil && newTS.Height() >= p.current.di.Close { // 如果上次处理的窗口已经过期结束了，则不要处理上一个窗口了
+	if p.current != nil && newTS.Height() >= p.current.di.Close { // 进入下一个窗口
 		// Cancel the context on the current proof
 		p.current.abort()
 
@@ -223,7 +223,7 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	}
 
 	// Only generate one proof at a time
-	if p.current != nil {  // 阻止一个窗口处理多次
+	if p.current != nil {  // 阻止一个窗口处理多次，且阻止下一个窗口提前处理
 		return
 	}
 
@@ -231,7 +231,7 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	// next post window
 	_, complete := p.posts.get(di)  // 如果这个窗口已经处理过了，则处理下一个
 	for complete {
-		di = nextDeadline(di)
+		di = NextDeadline(di)
 		_, complete = p.posts.get(di)
 	}
 
@@ -244,7 +244,6 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 	curr := p.current
 	p.current.abort = p.api.startGeneratePoST(ctx, newTS, di, func(posts []miner.SubmitWindowedPoStParams, err error) {
 		p.postResults <- &postResult{ts: newTS, currPost: curr, posts: posts, err: err}
-		// 这个窗口处理完成，进行下一个窗口的 partition 分配 TODO
 	})
 }
 
@@ -527,8 +526,8 @@ func (s *submitHandler) getPostWindow(di *dline.Info) *postWindow {
 	return <-out
 }
 
-// nextDeadline gets deadline info for the subsequent deadline
-func nextDeadline(currentDeadline *dline.Info) *dline.Info {
+// NextDeadline gets deadline info for the subsequent deadline
+func NextDeadline(currentDeadline *dline.Info) *dline.Info {
 	periodStart := currentDeadline.PeriodStart
 	newDeadline := currentDeadline.Index + 1
 	if newDeadline == miner.WPoStPeriodDeadlines {
