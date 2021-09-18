@@ -95,15 +95,49 @@ func (s *WindowPoStScheduler) startGeneratePoST( // 生成 windowPost 证明
 			log.Errorf("getting next partitions error: %v", err)
 			return
 		}
-		for _, partition := range partitions {
+		s.assignPartitions(partitions)
+		mineId, err := address.IDFromAddress(s.actor)
+		if err != nil {
+			log.Errorf("IDFromAddress error: %v", err)
+			return
+		}
+		actorId := abi.ActorID(mineId)
+		// 命令缓存
+		for partitionIndex, partition := range partitions {
 			ssi, err := s.sectorsForProof(ctx, partition.AllSectors, partition.AllSectors, ts)
 			if err != nil {
 				log.Errorf("sectorsForProof error: %v", err)
 				return
 			}
+			sectorIds := make([]string, 0)
 			for _, s := range ssi {
 				log.Warnf("[yunjie]: SectorNumber: %s", s.SectorNumber.String())
+				sectorIds = append(sectorIds, s.SectorNumber.String())
 			}
+			wdPosterUrl, ok := s.partitionWdPoster.Load(partitionIndex)
+			if !ok {  // 如果还是没有，说明没有 wdPoster
+				log.Errorf("have no wdPoster")
+				return
+			}
+			// 分区已经安排，但是 wdPoster 挂了怎么办？自己处理这个分区
+			wdPoster, ok := s.activeWdPosters.Load(wdPosterUrl)
+			if !ok {
+				log.Errorf("find wdPoster failed")
+				return
+			}
+			reply, err := wdPoster.(ActiveWdPosterData).Client.CacheSectors(ctx, &distribute_prover.CacheSectorsRequest{
+				ActorId:   uint64(actorId),
+				SectorIds: sectorIds,
+			})
+			if err != nil {
+				log.Errorf("CacheSectors error: %v", err)
+				return
+			}
+			if reply == nil || reply.Msg != "ok" {
+				log.Errorf("CacheSectors reply error: %v", err)
+				return
+			}
+
 		}
 	}()
 
@@ -461,6 +495,12 @@ func (s *WindowPoStScheduler) declareFaults(ctx context.Context, dlIdx uint64, p
 }
 
 func (s *WindowPoStScheduler) assignPartitions(partitions []api.Partition) {
+	// 清空
+	s.partitionWdPoster.Range(func(key, value interface{}) bool {
+		s.partitionWdPoster.Delete(key)
+		return true
+	})
+	// 分配
 	wdPosterUrls := make([]string, 0)
 	s.activeWdPosters.Range(func(key, value interface{}) bool {
 		wdPosterUrls = append(wdPosterUrls, key.(string))

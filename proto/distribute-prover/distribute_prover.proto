@@ -13,9 +13,22 @@ service DistributeProver {
 
   }
 
+  rpc CacheSectors (CacheSectorsRequest) returns (CacheSectorsReply) {
+
+  }
+
   rpc Ping (PingRequest) returns (PingReply) {
 
   }
+}
+
+message CacheSectorsRequest {
+  uint64 actorId = 1;
+  repeated string sectorIds = 2;
+}
+
+message CacheSectorsReply {
+  string msg = 1;
 }
 
 message PingRequest {

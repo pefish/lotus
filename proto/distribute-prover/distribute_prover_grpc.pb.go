@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type DistributeProverClient interface {
 	GenerateWindowPoSt(ctx context.Context, in *GenerateWindowPoStRequest, opts ...grpc.CallOption) (*GenerateWindowPoStReply, error)
 	GetGenerateWindowPoStResult(ctx context.Context, in *GetGenerateWindowPoStResultRequest, opts ...grpc.CallOption) (*GetGenerateWindowPoStResultReply, error)
+	CacheSectors(ctx context.Context, in *CacheSectorsRequest, opts ...grpc.CallOption) (*CacheSectorsReply, error)
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error)
 }
 
@@ -49,6 +50,15 @@ func (c *distributeProverClient) GetGenerateWindowPoStResult(ctx context.Context
 	return out, nil
 }
 
+func (c *distributeProverClient) CacheSectors(ctx context.Context, in *CacheSectorsRequest, opts ...grpc.CallOption) (*CacheSectorsReply, error) {
+	out := new(CacheSectorsReply)
+	err := c.cc.Invoke(ctx, "/distribute_prover.DistributeProver/CacheSectors", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *distributeProverClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error) {
 	out := new(PingReply)
 	err := c.cc.Invoke(ctx, "/distribute_prover.DistributeProver/Ping", in, out, opts...)
@@ -64,6 +74,7 @@ func (c *distributeProverClient) Ping(ctx context.Context, in *PingRequest, opts
 type DistributeProverServer interface {
 	GenerateWindowPoSt(context.Context, *GenerateWindowPoStRequest) (*GenerateWindowPoStReply, error)
 	GetGenerateWindowPoStResult(context.Context, *GetGenerateWindowPoStResultRequest) (*GetGenerateWindowPoStResultReply, error)
+	CacheSectors(context.Context, *CacheSectorsRequest) (*CacheSectorsReply, error)
 	Ping(context.Context, *PingRequest) (*PingReply, error)
 }
 
@@ -76,6 +87,9 @@ func (UnimplementedDistributeProverServer) GenerateWindowPoSt(context.Context, *
 }
 func (UnimplementedDistributeProverServer) GetGenerateWindowPoStResult(context.Context, *GetGenerateWindowPoStResultRequest) (*GetGenerateWindowPoStResultReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetGenerateWindowPoStResult not implemented")
+}
+func (UnimplementedDistributeProverServer) CacheSectors(context.Context, *CacheSectorsRequest) (*CacheSectorsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CacheSectors not implemented")
 }
 func (UnimplementedDistributeProverServer) Ping(context.Context, *PingRequest) (*PingReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
@@ -128,6 +142,24 @@ func _DistributeProver_GetGenerateWindowPoStResult_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DistributeProver_CacheSectors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheSectorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DistributeProverServer).CacheSectors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/distribute_prover.DistributeProver/CacheSectors",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DistributeProverServer).CacheSectors(ctx, req.(*CacheSectorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DistributeProver_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PingRequest)
 	if err := dec(in); err != nil {
@@ -160,6 +192,10 @@ var DistributeProver_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGenerateWindowPoStResult",
 			Handler:    _DistributeProver_GetGenerateWindowPoStResult_Handler,
+		},
+		{
+			MethodName: "CacheSectors",
+			Handler:    _DistributeProver_CacheSectors_Handler,
 		},
 		{
 			MethodName: "Ping",
