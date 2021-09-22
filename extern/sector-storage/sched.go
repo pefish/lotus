@@ -398,7 +398,7 @@ func (sh *scheduler) trySched() {
 				}
 
 				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
-				ok, err := task.sel.Ok(rpcCtx, task.taskType, task.sector.ProofType, worker)
+				ok, err := task.sel.Ok(rpcCtx, task.taskType, task.sector.ProofType, worker)  // 判断 worker 是否可以处理这个任务
 				cancel()
 				if err != nil {
 					log.Errorf("trySched(1) req.sel.Ok error: %+v", err)
@@ -408,7 +408,7 @@ func (sh *scheduler) trySched() {
 				if !ok {
 					continue
 				}
-
+				log.Infof("[yunjie]: selected worker. taskType: %s, sectorNumber: %s, worker hostname: %s", task.taskType, task.sector.ID.Number.String(), worker.info.Hostname)
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
 
