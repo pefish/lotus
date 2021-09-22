@@ -420,6 +420,7 @@ func (m *Manager) SealCommit1(ctx context.Context, sector storage.SectorRef, tic
 		return storage.Commit1Out{}, xerrors.Errorf("getWork: %w", err)
 	}
 	defer cancel()
+	log.Infof("[yunjie]: SealCommit1 got worker %s", wk.String())
 
 	var waitErr error
 	waitRes := func() {
