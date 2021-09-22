@@ -160,7 +160,7 @@ func (m *Sealing) checkCommit(ctx context.Context, si SectorInfo, proof []byte, 
 	}
 
 	if *si.CommR != pci.Info.SealedCID {
-		log.Warn("on-chain sealed CID doesn't match!")
+		log.Warnf("on-chain sealed CID doesn't match! SectorNumber: %s, *si.CommR: %s, pci.Info.SealedCID: %s", si.SectorNumber.String(), (*si.CommR).String(), pci.Info.SealedCID.String())
 	}
 
 	ok, err := m.verif.VerifySeal(proof2.SealVerifyInfo{
