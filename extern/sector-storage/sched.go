@@ -408,7 +408,7 @@ func (sh *scheduler) trySched() {
 				if !ok {
 					continue
 				}
-				log.Infof("[yunjie]: selected worker. taskType: %s, sectorNumber: %s, worker hostname: %s", task.taskType, task.sector.ID.Number.String(), worker.info.Hostname)
+				log.Infof("[yunjie]: selected worker. taskType: %s, sectorNumber: %s, worker id: %s", task.taskType, task.sector.ID.Number.String(), uuid.UUID(windowRequest.worker).String())
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
 
