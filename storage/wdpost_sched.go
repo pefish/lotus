@@ -61,11 +61,16 @@ type WindowPoStScheduler struct {
 	partitionWdPoster sync.Map  // partition index -> wdPoster url
 }
 
+// 幂等
 func (s *WindowPoStScheduler) Register(ctx context.Context, request *register_server.RegisterRequest) (*register_server.RegisterReply, error) {
+	if _, ok := s.activeWdPosters.Load(request.Url); ok {
+		return &register_server.RegisterReply{Msg: "ok"}, nil
+	}
 	err := s.connectOneWdPoster(request.Url)
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("[yunjie]: new wdPoster %s", request.Url)
 	return &register_server.RegisterReply{Msg: "ok"}, nil
 }
 
@@ -118,12 +123,12 @@ func (s *WindowPoStScheduler) connectWdPosters(wdPostServers []string)  {
 
 func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string) error {
 	log.Infof("[yunjie]: WindowPoStScheduler connecting wdPoster %s", wdPostServerUrl)
-	dialCtx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 	var conn *grpc.ClientConn
 	count := 3  // 重试次数
 	i := 0
 	for {
 		i++
+		dialCtx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 		conn_, err := grpc.DialContext(dialCtx, wdPostServerUrl, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Warnf("[yunjie]: WindowPoStScheduler connect wdPoster %s failed. err: %v", wdPostServerUrl, err)
