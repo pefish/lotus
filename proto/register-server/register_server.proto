@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package="./;register_server";
+
+package register_server;
+
+service RegisterServer {
+  rpc Register (RegisterRequest) returns (RegisterReply) {
+
+  }
+}
+
+message RegisterRequest {
+  string url = 1;
+}
+
+message RegisterReply {
+  string msg = 1;
+}
+

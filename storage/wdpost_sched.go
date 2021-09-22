@@ -3,7 +3,12 @@ package storage
 import (
 	"context"
 	distribute_prover "github.com/filecoin-project/lotus/proto/distribute-prover"
+	register_server "github.com/filecoin-project/lotus/proto/register-server"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"net"
 	"sync"
 	"time"
 
@@ -56,6 +61,14 @@ type WindowPoStScheduler struct {
 	partitionWdPoster sync.Map  // partition index -> wdPoster url
 }
 
+func (s *WindowPoStScheduler) Register(ctx context.Context, request *register_server.RegisterRequest) (*register_server.RegisterReply, error) {
+	err := s.connectOneWdPoster(request.Url)
+	if err != nil {
+		return nil, err
+	}
+	return &register_server.RegisterReply{Msg: "ok"}, nil
+}
+
 type ActiveWdPosterData struct{
 	Conn *grpc.ClientConn
 	Client distribute_prover.DistributeProverClient
@@ -103,7 +116,7 @@ func (s *WindowPoStScheduler) connectWdPosters(wdPostServers []string)  {
 	}
 }
 
-func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
+func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string) error {
 	log.Infof("[yunjie]: WindowPoStScheduler connecting wdPoster %s", wdPostServerUrl)
 	dialCtx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 	var conn *grpc.ClientConn
@@ -117,7 +130,7 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 			if i == count {
 				s.activeWdPosters.Delete(wdPostServerUrl)
 				s.failedWdPosters.Store(wdPostServerUrl, true)
-				return
+				return errors.New("connect failed")
 			}
 			time.Sleep(2 * time.Second)
 			continue
@@ -133,6 +146,7 @@ func (s *WindowPoStScheduler) connectOneWdPoster(wdPostServerUrl string)  {
 		Url: wdPostServerUrl,
 	})
 	log.Infof("[yunjie]: WindowPoStScheduler connected wdPoster %s", wdPostServerUrl)
+	return nil
 }
 
 func (s *WindowPoStScheduler) pingOneWdPoster(activeWdPoster ActiveWdPosterData)  {
@@ -176,6 +190,50 @@ func (s *WindowPoStScheduler) heartbeatWdPosters()  {
 	}
 }
 
+func (s *WindowPoStScheduler) startRegisterServer(ctx context.Context, registerServerUrl string) {
+	lis, err := net.Listen("tcp", registerServerUrl)
+	if err != nil {
+		log.Errorf("[yunjie]: [RegisterServer] failed to listen: %v", err)
+		return
+	}
+
+	grpcServer := grpc.NewServer(
+		grpc.StreamInterceptor(func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+			defer func() {
+				if err_ := recover(); err_ != nil {
+					log.Error(err_)
+					err = status.Errorf(codes.Internal, "%#v", err_)
+				}
+			}()
+			log.Infof("[yunjie]: [RegisterServer] method: %s, param: %#v", info.FullMethod, srv)
+			return handler(srv, ss)
+		}),
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {
+			defer func() {
+				if err_ := recover(); err_ != nil {
+					log.Error(err_)
+					err = status.Errorf(codes.Internal, "%#v", err_)
+				}
+			}()
+			log.Infof("[yunjie]: [RegisterServer] method: %s, param: %#v", info.FullMethod, req)
+			return handler(ctx, req)
+		}),
+	)
+	register_server.RegisterRegisterServerServer(grpcServer, s)
+
+	log.Infof(`[yunjie]: [RegisterServer] grpc server started. address: %s`, registerServerUrl)
+	go func() {
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Errorf("[yunjie]: [RegisterServer] failed to serve: %v", err)
+		}
+	}()
+
+	<- ctx.Done()
+	grpcServer.Stop()
+	log.Infof(`[yunjie]: [RegisterServer] grpc server stopped. address: %s`, registerServerUrl)
+
+}
+
 func (s *WindowPoStScheduler) Close()  {
 	s.activeWdPosters.Range(func(key, value interface{}) bool {
 		value.(ActiveWdPosterData).Conn.Close()
@@ -207,6 +265,8 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 		s.connectWdPosters(wdPostConfig.WdPostServers)
 		// 协程开启心跳
 		go s.heartbeatWdPosters()
+		// 启动注册中心
+		go s.startRegisterServer(ctx, wdPostConfig.RegisterServerUrl)
 	}
 
 	// not fine to panic after this point

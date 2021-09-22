@@ -191,6 +191,7 @@ func DefaultStorageMiner() *StorageMiner {
 
 		WdPost: WdPostConfig{
 			WdPostServers:  []string{},
+			RegisterServerUrl: "0.0.0.0:9000",
 		},
 	}
 	cfg.Common.API.ListenAddress = "/ip4/127.0.0.1/tcp/2345/http"

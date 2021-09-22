@@ -195,6 +195,7 @@ type SealingConfig struct {
 
 type WdPostConfig struct {
 	WdPostServers  []string
+	RegisterServerUrl string
 }
 
 type BatchFeeConfig struct {
