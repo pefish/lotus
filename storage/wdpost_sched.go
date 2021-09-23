@@ -270,9 +270,9 @@ func (s *WindowPoStScheduler) Run(ctx context.Context, wdPostConfig config.WdPos
 		s.connectWdPosters(wdPostConfig.WdPostServers)
 		// 协程开启心跳
 		go s.heartbeatWdPosters()
-		// 启动注册中心
-		go s.startRegisterServer(ctx, wdPostConfig.RegisterServerUrl)
 	}
+	// 启动注册中心
+	go s.startRegisterServer(ctx, wdPostConfig.RegisterServerUrl)
 
 	// not fine to panic after this point
 	for {
