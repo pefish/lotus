@@ -726,13 +726,13 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 					return
 				}
 
-				good, err := s.checkSectors(ctx, toProve, ts.Key()) // 过滤掉坏的扇区
-				if err != nil {
-					errChan <- xerrors.Errorf("checking sectors to skip: %w", err)
-					return
-				}
+				//good, err := s.checkSectors(ctx, toProve, ts.Key()) // 过滤掉坏的扇区。这里也要用到封装文件
+				//if err != nil {
+				//	errChan <- xerrors.Errorf("checking sectors to skip: %w", err)
+				//	return
+				//}
 
-				good, err = bitfield.SubtractBitField(good, postSkipped) // 过滤掉应该跳过的扇区
+				good, err := bitfield.SubtractBitField(toProve, postSkipped) // 过滤掉应该跳过的扇区
 				if err != nil {
 					errChan <- xerrors.Errorf("toProve - postSkipped: %w", err)
 					return
