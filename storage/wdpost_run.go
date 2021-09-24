@@ -797,61 +797,62 @@ func (s *WindowPoStScheduler) runPoStCycle(ctx context.Context, di dline.Info, t
 
 				if processBySelf {
 					postOut, ps, err = s.prover.GenerateWindowPoSt(ctx, abi.ActorID(mid), sinfos, randoms) // 给这一分区中所有的扇区生成时空证明
+					elapsed := time.Since(tsStart)
+
+					log.Infow("computing window post", "partition", partitionsIdx, "elapsed", elapsed)
+
+					if err == nil {
+						// If we proved nothing, something is very wrong.
+						if len(postOut) == 0 {
+							errChan <- xerrors.Errorf("received no proofs back from generate window post")
+							return
+						}
+
+						headTs, err := s.api.ChainHead(ctx)
+						if err != nil {
+							errChan <- xerrors.Errorf("getting current head: %w", err)
+							return
+						}
+
+						checkRand, err := s.api.ChainGetRandomnessFromBeacon(ctx, headTs.Key(), crypto.DomainSeparationTag_WindowedPoStChallengeSeed, di.Challenge, buf.Bytes())
+						if err != nil {
+							errChan <- xerrors.Errorf("failed to get chain randomness from beacon for window post (ts=%d; deadline=%d): %w", ts.Height(), di, err)
+							return
+						}
+
+						if !bytes.Equal(checkRand, rand) { // 提交前再校验一下随机数
+							log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand, "ts-height", ts.Height(), "challenge-height", di.Challenge, "tsk", ts.Key())
+							rand = checkRand
+							continue
+						}
+
+						// If we generated an incorrect proof, try again.
+						if correct, err := s.verifier.VerifyWindowPoSt(ctx, proof.WindowPoStVerifyInfo{ // 本地校验一下上面生成的证明信息
+							Randomness:        abi.PoStRandomness(checkRand),
+							Proofs:            postOut,
+							ChallengedSectors: sinfos,
+							Prover:            abi.ActorID(mid),
+						}); err != nil {
+							log.Errorw("window post verification failed", "post", postOut, "error", err)
+							time.Sleep(5 * time.Second)
+							continue
+						} else if !correct {
+							log.Errorw("generated incorrect window post proof", "post", postOut, "error", err)
+							continue
+						}
+
+						// Proof generation successful, stop retrying
+						somethingToProve = true
+						params.Partitions = append(params.Partitions, miner.PoStPartition{
+							Index:   uint64(partitionsIdx),
+							Skipped: skipped,
+						})
+						params.Proofs = postOut
+						break // 跳出重试
+					}
+
 				}
 
-				elapsed := time.Since(tsStart)
-
-				log.Infow("computing window post", "partition", partitionsIdx, "elapsed", elapsed)
-
-				if err == nil {
-					// If we proved nothing, something is very wrong.
-					if len(postOut) == 0 {
-						errChan <- xerrors.Errorf("received no proofs back from generate window post")
-						return
-					}
-
-					headTs, err := s.api.ChainHead(ctx)
-					if err != nil {
-						errChan <- xerrors.Errorf("getting current head: %w", err)
-						return
-					}
-
-					checkRand, err := s.api.ChainGetRandomnessFromBeacon(ctx, headTs.Key(), crypto.DomainSeparationTag_WindowedPoStChallengeSeed, di.Challenge, buf.Bytes())
-					if err != nil {
-						errChan <- xerrors.Errorf("failed to get chain randomness from beacon for window post (ts=%d; deadline=%d): %w", ts.Height(), di, err)
-						return
-					}
-
-					if !bytes.Equal(checkRand, rand) { // 提交前再校验一下随机数
-						log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand, "ts-height", ts.Height(), "challenge-height", di.Challenge, "tsk", ts.Key())
-						rand = checkRand
-						continue
-					}
-
-					// If we generated an incorrect proof, try again.
-					if correct, err := s.verifier.VerifyWindowPoSt(ctx, proof.WindowPoStVerifyInfo{ // 本地校验一下上面生成的证明信息
-						Randomness:        abi.PoStRandomness(checkRand),
-						Proofs:            postOut,
-						ChallengedSectors: sinfos,
-						Prover:            abi.ActorID(mid),
-					}); err != nil {
-						log.Errorw("window post verification failed", "post", postOut, "error", err)
-						time.Sleep(5 * time.Second)
-						continue
-					} else if !correct {
-						log.Errorw("generated incorrect window post proof", "post", postOut, "error", err)
-						continue
-					}
-
-					// Proof generation successful, stop retrying
-					somethingToProve = true
-					params.Partitions = append(params.Partitions, miner.PoStPartition{
-						Index:   uint64(partitionsIdx),
-						Skipped: skipped,
-					})
-					params.Proofs = postOut
-					break // 跳出重试
-				}
 
 				// Proof generation failed, so retry  生成失败，进行重试
 
