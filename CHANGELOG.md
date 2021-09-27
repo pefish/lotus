@@ -534,7 +534,7 @@ Included in the HyperDrive upgrade is [FIP-0015](https://github.com/filecoin-pro
 - Update to go-praamfetch with fslocks ([filecoin-project/lotus#6473](https://github.com/filecoin-project/lotus/pull/6473))
 - Update ffi with fixed multicore sdr support ([filecoin-project/lotus#6471](https://github.com/filecoin-project/lotus/pull/6471))
 - github.com/filecoin-project/go-paramfetch (v0.0.2-0.20200701152213-3e0f0afdc261 -> v0.0.2-0.20210614165157-25a6c7769498)
-- github.com/filecoin-project/specs-actors/v5 (v5.0.0-20210512015452-4fe3889fff57 -> v5.0.0)
+- github.com/bitchina-io/specs-actors/v5 (v5.0.0-20210512015452-4fe3889fff57 -> v5.0.0)
 - github.com/filecoin-project/go-hamt-ipld/v3 (v3.0.1 -> v3.1.0)
 - github.com/ipfs/go-log/v2 (v2.1.2-0.20200626104915-0016c0b4b3e4 -> v2.1.3)
 - github.com/filecoin-project/go-amt-ipld/v3 (v3.0.0 -> v3.1.0)

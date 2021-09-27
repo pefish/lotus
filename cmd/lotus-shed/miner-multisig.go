@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
 
-	msig5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/multisig"
+	msig5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/multisig"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/big"

@@ -12,7 +12,7 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/network"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
 
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"

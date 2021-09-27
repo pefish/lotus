@@ -5,8 +5,8 @@ import (
 	"context"
 	"testing"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/xerrors"
@@ -26,7 +26,7 @@ import (
 	miner2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
 	tutils "github.com/filecoin-project/specs-actors/v2/support/testing"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"

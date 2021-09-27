@@ -26,8 +26,8 @@ import (
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/lotus/lib/sigs"
 
-	runtime5 "github.com/filecoin-project/specs-actors/v5/actors/runtime"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	runtime5 "github.com/bitchina-io/specs-actors/v5/actors/runtime"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 )
 
 func init() {

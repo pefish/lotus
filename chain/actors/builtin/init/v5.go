@@ -10,10 +10,10 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
 
-	init5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/init"
-	adt5 "github.com/filecoin-project/specs-actors/v5/actors/util/adt"
+	init5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/init"
+	adt5 "github.com/bitchina-io/specs-actors/v5/actors/util/adt"
 )
 
 var _ State = (*state5)(nil)

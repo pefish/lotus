@@ -22,7 +22,7 @@ import (
 	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	miner2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
 	miner3 "github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
 
 	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
 
@@ -32,7 +32,7 @@ import (
 
 	builtin4 "github.com/filecoin-project/specs-actors/v4/actors/builtin"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
 )
 
 func init() {

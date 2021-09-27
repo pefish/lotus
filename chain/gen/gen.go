@@ -26,7 +26,7 @@ import (
 	"go.opencensus.io/trace"
 	"golang.org/x/xerrors"
 
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/blockstore"

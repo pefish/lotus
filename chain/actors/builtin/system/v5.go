@@ -5,7 +5,7 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 
-	system5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/system"
+	system5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/system"
 )
 
 var _ State = (*state5)(nil)

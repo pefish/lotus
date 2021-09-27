@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	msig0 "github.com/filecoin-project/specs-actors/actors/builtin/multisig"
-	msig5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/multisig"
+	msig5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/multisig"
 
 	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
 
@@ -23,7 +23,7 @@ import (
 
 	builtin4 "github.com/filecoin-project/specs-actors/v4/actors/builtin"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
 
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/adt"

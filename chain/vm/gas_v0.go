@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"

@@ -10,8 +10,8 @@ import (
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/go-state-types/network"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	power5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/power"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
+	power5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/power"
 
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"

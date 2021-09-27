@@ -7,9 +7,9 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	reward5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/reward"
-	smoothing5 "github.com/filecoin-project/specs-actors/v5/actors/util/smoothing"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
+	reward5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/reward"
+	smoothing5 "github.com/bitchina-io/specs-actors/v5/actors/util/smoothing"
 )
 
 var _ State = (*state5)(nil)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
 
 	"github.com/filecoin-project/lotus/chain/types"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"

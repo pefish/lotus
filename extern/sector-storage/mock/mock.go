@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"sync"
 
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 
 	ffiwrapper2 "github.com/filecoin-project/go-commp-utils/ffiwrapper"
 	commcid "github.com/filecoin-project/go-fil-commcid"

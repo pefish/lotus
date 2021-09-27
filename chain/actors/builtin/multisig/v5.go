@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	adt5 "github.com/filecoin-project/specs-actors/v5/actors/util/adt"
+	adt5 "github.com/bitchina-io/specs-actors/v5/actors/util/adt"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -14,9 +14,9 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
 
-	msig5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/multisig"
+	msig5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/multisig"
 )
 
 var _ State = (*state5)(nil)

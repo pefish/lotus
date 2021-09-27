@@ -4,7 +4,7 @@ package ffiwrapper
 
 import (
 	ffi "github.com/filecoin-project/filecoin-ffi"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 )
 
 var ProofProver = proofProver{}

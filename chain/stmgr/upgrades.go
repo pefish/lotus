@@ -24,7 +24,7 @@ import (
 	"github.com/filecoin-project/specs-actors/v2/actors/migration/nv7"
 	"github.com/filecoin-project/specs-actors/v3/actors/migration/nv10"
 	"github.com/filecoin-project/specs-actors/v4/actors/migration/nv12"
-	"github.com/filecoin-project/specs-actors/v5/actors/migration/nv13"
+	"github.com/bitchina-io/specs-actors/v5/actors/migration/nv13"
 
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"

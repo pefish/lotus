@@ -24,7 +24,7 @@ import (
 	states2 "github.com/filecoin-project/specs-actors/v2/actors/states"
 	states3 "github.com/filecoin-project/specs-actors/v3/actors/states"
 	states4 "github.com/filecoin-project/specs-actors/v4/actors/states"
-	states5 "github.com/filecoin-project/specs-actors/v5/actors/states"
+	states5 "github.com/bitchina-io/specs-actors/v5/actors/states"
 )
 
 var log = logging.Logger("statetree")

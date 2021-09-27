@@ -13,7 +13,7 @@ import (
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/go-statemachine"
-	"github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
+	"github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
 	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/lotus/api"

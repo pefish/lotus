@@ -9,8 +9,8 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 
-	paych5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/paych"
-	adt5 "github.com/filecoin-project/specs-actors/v5/actors/util/adt"
+	paych5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/paych"
+	adt5 "github.com/bitchina-io/specs-actors/v5/actors/util/adt"
 )
 
 var _ State = (*state5)(nil)

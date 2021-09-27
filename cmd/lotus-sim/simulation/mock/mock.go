@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-	tutils "github.com/filecoin-project/specs-actors/v5/support/testing"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
+	proof5 "github.com/bitchina-io/specs-actors/v5/actors/runtime/proof"
+	tutils "github.com/bitchina-io/specs-actors/v5/support/testing"
 
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper"
 )

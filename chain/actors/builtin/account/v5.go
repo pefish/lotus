@@ -6,7 +6,7 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/actors/adt"
 
-	account5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/account"
+	account5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/account"
 )
 
 var _ State = (*state5)(nil)

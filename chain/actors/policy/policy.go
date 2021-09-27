@@ -30,12 +30,12 @@ import (
 	miner4 "github.com/filecoin-project/specs-actors/v4/actors/builtin/miner"
 	verifreg4 "github.com/filecoin-project/specs-actors/v4/actors/builtin/verifreg"
 
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	market5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/market"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	verifreg5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/verifreg"
+	builtin5 "github.com/bitchina-io/specs-actors/v5/actors/builtin"
+	market5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/market"
+	miner5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/miner"
+	verifreg5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/verifreg"
 
-	paych5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/paych"
+	paych5 "github.com/bitchina-io/specs-actors/v5/actors/builtin/paych"
 )
 
 const (
